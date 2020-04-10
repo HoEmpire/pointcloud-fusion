@@ -52,4 +52,33 @@ void readConfig() {
   config.print();
 }
 
-void paint
+pcl::PointCloud<pcl::PointXYZRGB>
+paintPointCloud(pcl::PointCloud<pcl::PointXYZ> point_cloud, cv::Mat img) {
+  pcl::PointCloud<pcl::PointXYZRGB> point_cloud_color;
+  int row = img.rows;
+  int col = img.cols;
+  Eigen::Vector3d p;
+  p << 0, 0, 0, 1;
+  for (pcl::PointCloud<pcl::PointXYZI>::iterator pt =
+           point_cloud.points.begin();
+       pt < pc.points.end(); pt++) {
+    p(0) = pt->x;
+    p(1) = pt->y;
+    p(2) = py->z;
+    p = config.projection_matrix * p;
+    p(0) = int(p(0) / p(2));
+    p(1) = int(p(1) / p(2));
+    if (p(0) >= 0 && p(0) < col && p(1) >= 0 && p(1) < row) {
+      pcl::PointXYZRGB new_point;
+      uchar *img_ptr = img.ptr<uchar>(p(1))[p(0)];
+      new_point.x = pt->x;
+      new_point.y = pt->y;
+      new_point.z = pt->z;
+      new_point.b = *img_ptr++;
+      new_point.g = *img_ptr++;
+      new_point.r = *img_ptr;
+      point_cloud_color.push_back(new_point);
+    }
+  }
+  return point_cloud_color;
+}

@@ -1,11 +1,3 @@
-#include <algorithm>
-#include <cstdio>
-#include <cstdlib>
-#include <map>
-#include <math.h>
-
-#include "opencv2/opencv.hpp"
-
 #include <cv_bridge/cv_bridge.h>
 #include <image_transport/image_transport.h>
 #include <ros/ros.h>
@@ -17,18 +9,10 @@
 #include <message_filters/sync_policies/approximate_time.h>
 #include <message_filters/synchronizer.h>
 
-#include <boost/foreach.hpp>
-#include <pcl/common/eigen.h>
-#include <pcl/common/transforms.h>
-#include <pcl/filters/passthrough.h>
 #include <pcl_conversions/pcl_conversions.h>
 #include <pcl_ros/point_cloud.h>
 
-#include "lidar_camera_calibration/Corners.h"
-#include "lidar_camera_calibration/Find_RT.h"
-#include "lidar_camera_calibration/PreprocessUtils.h"
-
-#include "lidar_camera_calibration/marker_6dof.h"
+#include "pointcloud_fusion/util.h"
 
 void callback(const sensor_msgs::PointCloud2ConstPtr &msg_pc,
               const sensor_msgs::ImageConstPtr &msg_img) {
