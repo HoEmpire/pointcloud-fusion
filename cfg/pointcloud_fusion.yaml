@@ -1,0 +1,3 @@
+﻿pointcloud_fusion:
+  lidar_topic: /livox/lidar
+  camera_topic: /camera_array/cam0/image_raw

@@ -17,17 +17,14 @@ find_package(catkin
   cv_bridge
   image_transport
   image_geometry
-  velodyne_msgs
-  velodyne_pointcloud
   pcl_ros
 )
 
-add_message_files(FILES marker_6dof.msg)
-generate_messages(DEPENDENCIES
-                  std_msgs
-                  )
+# generate_messages(DEPENDENCIES
+#                   std_msgs
+#                   )
 
-catkin_package(CATKIN_DEPENDS std_msgs)
+# catkin_package(CATKIN_DEPENDS std_msgs)
 
 find_package(OpenCV REQUIRED)
 include_directories(${OpenCV_INCLUDE_DIRS})
@@ -42,7 +39,6 @@ add_definitions(${PCL_DEFINITIONS})
 
 include_directories(include ${catkin_INCLUDE_DIRS})
 
-add_executable(find_transform src/find_velodyne_points.cpp src/Corners.cpp) 
-target_link_libraries(find_transform ${PCL_LIBRARIES}) 
-target_link_libraries(find_transform ${catkin_LIBRARIES})
-target_link_libraries(find_transform ${OpenCV_LIBS})
+add_executable(fuse_point_cloud src/main.cpp) 
+target_link_libraries(fuse_point_cloud ${PCL_LIBRARIES} ${catkin_LIBRARIES} ${OpenCV_LIBS})  
+# target_link_libraries(find_transform)

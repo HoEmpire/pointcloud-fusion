@@ -15,42 +15,42 @@
 #include "pointcloud_fusion/util.h"
 
 void callback(const sensor_msgs::PointCloud2ConstPtr &msg_pc,
-              const sensor_msgs::ImageConstPtr &msg_img) {
+              const sensor_msgs::ImageConstPtr &msg_img)
+{
   ROS_INFO_STREAM("Lidar received at " << msg_pc->header.stamp.toSec());
-  ROS_INFO_STREAM("Camera received at " << msg_rt->header.stamp.toSec());
+  ROS_INFO_STREAM("Camera received at " << msg_img->header.stamp.toSec());
 
   pcl::PointCloud<pcl::PointXYZI> point_cloud_livox;
   pcl::PointCloud<pcl::PointXYZRGB> point_cloud_color;
   pcl::fromROSMsg(*msg_pc, point_cloud_livox);
 
   cv_bridge::CvImagePtr cv_ptr;
-  cv_ptr = cv_bridge::toCvCopy(msg, sensor_msgs::image_encodings::BGR8);
+  cv_ptr = cv_bridge::toCvCopy(msg_img, sensor_msgs::image_encodings::BGR8);
 
   point_cloud_color = paintPointCloud(point_cloud_livox, cv_ptr->image);
 
   pcl::io::savePCDFileASCII("/home/tim/msg_point_cloud.pcd", point_cloud_color);
-  ros::shutdown();
+  // ros::shutdown();
 }
 
-int main(int argc, char **argv) {
+int main(int argc, char **argv)
+{
   readConfig();
   ros::init(argc, argv, "pointcloud_fusion");
 
   ros::NodeHandle n;
 
-  string lidar_topic, camera_topic;
+  std::string lidar_topic, camera_topic;
   n.getParam("/pointcloud_fusion/lidar_topic", lidar_topic);
   n.getParam("/pointcloud_fusion/camera_topic", camera_topic);
 
   message_filters::Subscriber<sensor_msgs::PointCloud2> cloud_sub(
-      n, VELODYNE_TOPIC, 1);
+      n, lidar_topic, 1);
   message_filters::Subscriber<sensor_msgs::Image> camera_sub(
-      n, "lidar_camera_calibration_rt", 1);
+      n, camera_topic, 1);
 
-  typedef sync_policies::ApproximateTime<sensor_msgs::PointCloud2,
-                                         sensor_msgs::Image>
-      MySyncPolicy;
-  Synchronizer<MySyncPolicy> sync(MySyncPolicy(10), cloud_sub, rt_sub);
+  typedef message_filters::sync_policies::ApproximateTime<sensor_msgs::PointCloud2, sensor_msgs::Image> MySyncPolicy;
+  message_filters::Synchronizer<MySyncPolicy> sync(MySyncPolicy(10), cloud_sub, camera_sub);
   sync.registerCallback(boost::bind(&callback, _1, _2));
 
   ros::spin();

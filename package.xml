@@ -1,12 +1,12 @@
 <?xml version="1.0"?>
 <package>
-  <name>lidar_camera_calibration</name>
-  <url>http://wiki.ros.org/lidar_camera_calibration</url>
+  <name>pointcloud_fusion</name>
+  <url>https://github.com/HoEmpire/pointcloud-fusion.git</url>
   <description>
-     ROS package to find a rigid-body transformation between a LiDAR and a camera
+     ROS package to fuse pointcloud of livox lidar and camera
   </description>
   <version>0.0.1</version>
-  <maintainer email="refer_to_repo@github.com">Ankit Dhall, Kunal Chelani, Vishnu Radhakrishnan</maintainer>
+  <maintainer email="refer_to_repo@github.com">Yuxiang Peng</maintainer>
   <license>GPLv3</license>
 
 
@@ -16,11 +16,8 @@
   <build_depend>rospy</build_depend>
   <build_depend>roscpp</build_depend>
   <build_depend>cv_bridge</build_depend>
-  <build_depend>camera_info_manager</build_depend>
   <build_depend>image_transport</build_depend>
   <build_depend>image_geometry</build_depend>
-  <build_depend>velodyne_msgs</build_depend>
-  <build_depend>velodyne_pointcloud</build_depend>
   <build_depend>pcl_ros</build_depend>
 
 
@@ -30,8 +27,6 @@
   <run_depend>cv_bridge</run_depend>
   <run_depend>image_transport</run_depend>
   <run_depend>image_geometry</run_depend>
-  <run_depend>velodyne_msgs</run_depend>
-  <run_depend>velodyne_pointcloud</run_depend>
   <run_depend>pcl_ros</run_depend>
 
 </package>

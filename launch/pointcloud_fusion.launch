@@ -1,0 +1,8 @@
+<?xml version="1.0"?>
+<launch>
+
+  <rosparam command="load" file="$(find pointcloud_fusion)/cfg/pointcloud_fusion.yaml" />
+  <node pkg="pointcloud_fusion" type="fuse_point_cloud" name="pointcloud_fusion" output="screen">
+  </node>
+</launch>
+
