@@ -1,3 +1,4 @@
 ﻿pointcloud_fusion:
   lidar_topic: /livox/lidar
   camera_topic: /camera_array/cam0/image_raw
+  save_path: /log/4.12

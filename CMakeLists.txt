@@ -39,6 +39,11 @@ add_definitions(${PCL_DEFINITIONS})
 
 include_directories(include ${catkin_INCLUDE_DIRS})
 
+add_library(datalog_lib src/mylog.cpp)
+
 add_executable(fuse_point_cloud src/main.cpp) 
 target_link_libraries(fuse_point_cloud ${PCL_LIBRARIES} ${catkin_LIBRARIES} ${OpenCV_LIBS})  
 # target_link_libraries(find_transform)
+
+add_executable(dataloger src/dataloger.cpp) 
+target_link_libraries(dataloger datalog_lib ${PCL_LIBRARIES} ${catkin_LIBRARIES} ${OpenCV_LIBS})  
