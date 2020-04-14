@@ -11,14 +11,18 @@
 struct config_settings
 {
   Eigen::Matrix4d extrinsic_matrix, camera_matrix, projection_matrix;
+  double k1, k2, k3, p1, p2;
   void print()
   {
     std::cout << "Extrinsic matrix: \n"
-              << extrinsic_matrix << "\n";
+              << extrinsic_matrix << std::endl;
     std::cout << "Camera matrix: \n"
-              << camera_matrix << "\n";
+              << camera_matrix << std::endl;
     std::cout << "Projection matrix: \n"
-              << projection_matrix << "\n";
+              << projection_matrix << std::endl;
+    std::cout << "Distortion coeff: \n"
+              << k1 << " " << k2 << " " << k3 << " "
+              << p1 << " " << p2 << std::endl;
   }
 } config;
 
@@ -59,6 +63,12 @@ void readConfig()
 
   config.projection_matrix = config.camera_matrix * config.extrinsic_matrix;
 
+  infile >> config.k1;
+  infile >> config.k2;
+  infile >> config.p1;
+  infile >> config.p2;
+  infile >> config.k3;
+
   infile.close();
   config.print();
 }
@@ -78,7 +88,27 @@ paintPointCloud(pcl::PointCloud<pcl::PointXYZI> point_cloud, cv::Mat img)
     p(0) = pt->x;
     p(1) = pt->y;
     p(2) = pt->z;
-    p = config.projection_matrix * p;
+    if (p(2) == 0)
+      continue;
+    p = config.extrinsic_matrix * p;
+    p = p / p(2);
+    double r2 = p(0) * p(0) + p(1) * p(1);
+
+    double k1, k2, k3, p1, p2;
+    k1 = config.k1;
+    k2 = config.k2;
+    k3 = config.k3;
+    p1 = config.p1;
+    p2 = config.p2;
+
+    double x_distorted, y_distorted;
+    x_distorted = p(0) * (1 + k1 * r2 + k2 * r2 * r2 + k3 * r2 * r2 * r2) + 2 * p1 * p(0) * p(1) + p2 * (r2 + 2 * p(0) * p(0));
+    y_distorted = p(1) * (1 + k1 * r2 + k2 * r2 * r2 + k3 * r2 * r2 * r2) + 2 * p2 * p(0) * p(1) + p1 * (r2 + 2 * p(1) * p(1));
+
+    p(0) = x_distorted;
+    p(1) = y_distorted;
+    p = config.camera_matrix * p;
+
     int x = int(p(0) / p(2));
     int y = int(p(1) / p(2));
     if (x >= 0 && x < col && y >= 0 && y < row)
