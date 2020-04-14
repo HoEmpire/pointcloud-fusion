@@ -23,6 +23,8 @@ public:
 
     ~mylog();
 
+    void save();
+
     std::vector<sensor_msgs::ImageConstPtr> img_array;
     std::vector<sensor_msgs::PointCloud2ConstPtr> pc_array;
 

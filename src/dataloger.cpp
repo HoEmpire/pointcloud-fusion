@@ -50,6 +50,6 @@ int main(int argc, char **argv)
     sync.registerCallback(boost::bind(&callback, _1, _2));
 
     ros::spin();
-
+    logger.save();
     return EXIT_SUCCESS;
 }

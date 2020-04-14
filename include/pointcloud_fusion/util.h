@@ -81,7 +81,7 @@ paintPointCloud(pcl::PointCloud<pcl::PointXYZI> point_cloud, cv::Mat img)
     p = config.projection_matrix * p;
     int x = int(p(0) / p(2));
     int y = int(p(1) / p(2));
-    if (p(0) >= 0 && p(0) < col && p(1) >= 0 && p(1) < row)
+    if (x >= 0 && x < col && y >= 0 && y < row)
     {
       pcl::PointXYZRGB new_point;
       uchar *img_ptr = img.ptr<uchar>(y);

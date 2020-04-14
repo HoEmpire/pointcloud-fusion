@@ -29,7 +29,7 @@ void callback(const sensor_msgs::PointCloud2ConstPtr &msg_pc,
 
   point_cloud_color = paintPointCloud(point_cloud_livox, cv_ptr->image);
 
-  pcl::io::savePCDFileASCII("/home/tim/msg_point_cloud.pcd", point_cloud_color);
+  pcl::io::savePCDFile("/home/tim/msg_point_cloud.pcd", point_cloud_color);
   // ros::shutdown();
 }
 

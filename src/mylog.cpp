@@ -5,6 +5,10 @@ mylog::mylog()
 
 mylog::~mylog()
 {
+}
+
+void mylog::save()
+{
     outfile_pointcloud.open(save_path + "/points.txt", std::ios_base::trunc);
     outfile_img_time.open(save_path + "/image_time.txt", std::ios_base::trunc);
     int num_point = 0;
