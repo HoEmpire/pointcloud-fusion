@@ -80,11 +80,12 @@ paintPointCloud(pcl::PointCloud<pcl::PointXYZI> point_cloud, cv::Mat img)
   int row = img.rows;
   int col = img.cols;
   Eigen::Vector4d p;
-  p << 0, 0, 0, 1;
+
   for (pcl::PointCloud<pcl::PointXYZI>::iterator pt =
            point_cloud.points.begin();
        pt < point_cloud.points.end(); pt++)
   {
+    p << 0, 0, 0, 1;
     p(0) = pt->x;
     p(1) = pt->y;
     p(2) = pt->z;
