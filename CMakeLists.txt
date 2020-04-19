@@ -47,3 +47,6 @@ target_link_libraries(fuse_point_cloud ${PCL_LIBRARIES} ${catkin_LIBRARIES} ${Op
 
 add_executable(dataloger src/dataloger.cpp) 
 target_link_libraries(dataloger datalog_lib ${PCL_LIBRARIES} ${catkin_LIBRARIES} ${OpenCV_LIBS})  
+
+add_executable(multi_pointcloud src/multi_pointcloud.cpp) 
+target_link_libraries(multi_pointcloud ${PCL_LIBRARIES} ${catkin_LIBRARIES} ${OpenCV_LIBS})  
