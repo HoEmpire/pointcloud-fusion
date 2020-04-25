@@ -2,3 +2,10 @@
   lidar_topic: /livox/lidar
   camera_topic: /camera_array/cam0/image_raw
   save_path: /log/4.12_1
+
+  icp_config:
+    MaxCorrespondenceDistance: 0.15
+    TransformationEpsilon: 0.0000000001
+    MaximumIterations: 10000
+    EuclideanFitnessEpsilon: 0.001
+    RANSACOutlierRejectionThreshold: 0.001
