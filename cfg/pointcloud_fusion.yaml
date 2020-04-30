@@ -4,8 +4,8 @@
   save_path: /log/4.12_1
 
   icp_config:
-    MaxCorrespondenceDistance: 0.15
-    TransformationEpsilon: 0.0000000001
+    MaxCorrespondenceDistance: 0.3
+    TransformationEpsilon: 0.00000000001
     MaximumIterations: 10000
-    EuclideanFitnessEpsilon: 0.001
-    RANSACOutlierRejectionThreshold: 0.001
+    EuclideanFitnessEpsilon: 0.0001
+    RANSACOutlierRejectionThreshold: 0.3
