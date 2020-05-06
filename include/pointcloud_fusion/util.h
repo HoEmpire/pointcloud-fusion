@@ -1,11 +1,11 @@
 #include <iostream>
 #include <vector>
 
-#include <Eigen/Core>
-#include <opencv2/core/core.hpp>
 #include <pcl/io/pcd_io.h>
 #include <pcl/point_cloud.h>
 #include <ros/package.h>
+#include <Eigen/Core>
+#include <opencv2/core/core.hpp>
 
 // config util
 struct config_settings
@@ -14,15 +14,10 @@ struct config_settings
   double k1, k2, k3, p1, p2;
   void print()
   {
-    std::cout << "Extrinsic matrix: \n"
-              << extrinsic_matrix << std::endl;
-    std::cout << "Camera matrix: \n"
-              << camera_matrix << std::endl;
-    std::cout << "Projection matrix: \n"
-              << projection_matrix << std::endl;
-    std::cout << "Distortion coeff: \n"
-              << k1 << " " << k2 << " " << k3 << " "
-              << p1 << " " << p2 << std::endl;
+    std::cout << "Extrinsic matrix: \n" << extrinsic_matrix << std::endl;
+    std::cout << "Camera matrix: \n" << camera_matrix << std::endl;
+    std::cout << "Projection matrix: \n" << projection_matrix << std::endl;
+    std::cout << "Distortion coeff: \n" << k1 << " " << k2 << " " << k3 << " " << p1 << " " << p2 << std::endl;
   }
 } config;
 
@@ -73,17 +68,14 @@ void readConfig()
   config.print();
 }
 
-pcl::PointCloud<pcl::PointXYZRGB>
-paintPointCloud(pcl::PointCloud<pcl::PointXYZI> point_cloud, cv::Mat img)
+pcl::PointCloud<pcl::PointXYZRGB> paintPointCloud(pcl::PointCloud<pcl::PointXYZI> point_cloud, cv::Mat img)
 {
   pcl::PointCloud<pcl::PointXYZRGB> point_cloud_color;
   int row = img.rows;
   int col = img.cols;
   Eigen::Vector4d p;
 
-  for (pcl::PointCloud<pcl::PointXYZI>::iterator pt =
-           point_cloud.points.begin();
-       pt < point_cloud.points.end(); pt++)
+  for (pcl::PointCloud<pcl::PointXYZI>::iterator pt = point_cloud.points.begin(); pt < point_cloud.points.end(); pt++)
   {
     p << 0, 0, 0, 1;
     p(0) = pt->x;
@@ -103,8 +95,10 @@ paintPointCloud(pcl::PointCloud<pcl::PointXYZI> point_cloud, cv::Mat img)
     p2 = config.p2;
 
     double x_distorted, y_distorted;
-    x_distorted = p(0) * (1 + k1 * r2 + k2 * r2 * r2 + k3 * r2 * r2 * r2) + 2 * p1 * p(0) * p(1) + p2 * (r2 + 2 * p(0) * p(0));
-    y_distorted = p(1) * (1 + k1 * r2 + k2 * r2 * r2 + k3 * r2 * r2 * r2) + 2 * p2 * p(0) * p(1) + p1 * (r2 + 2 * p(1) * p(1));
+    x_distorted =
+        p(0) * (1 + k1 * r2 + k2 * r2 * r2 + k3 * r2 * r2 * r2) + 2 * p1 * p(0) * p(1) + p2 * (r2 + 2 * p(0) * p(0));
+    y_distorted =
+        p(1) * (1 + k1 * r2 + k2 * r2 * r2 + k3 * r2 * r2 * r2) + 2 * p2 * p(0) * p(1) + p1 * (r2 + 2 * p(1) * p(1));
 
     p(0) = x_distorted;
     p(1) = y_distorted;

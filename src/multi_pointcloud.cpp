@@ -5,6 +5,10 @@
 #include <sensor_msgs/PointCloud2.h>
 #include <sensor_msgs/image_encodings.h>
 #include <std_msgs/UInt16.h>
+#include <fstream>
+
+#include <opencv2/core/core.hpp>
+#include <opencv2/opencv.hpp>
 
 #include <message_filters/subscriber.h>
 #include <message_filters/sync_policies/approximate_time.h>
@@ -54,7 +58,9 @@ public:
   }
 };
 
+int cunt = 0;
 int global_flag = 0;
+std::string save_path;
 std::vector<pcl::PointCloud<pcl::PointXYZRGB>> clouds;
 struct icp_config
 {
@@ -189,6 +195,23 @@ void callback(const sensor_msgs::PointCloud2ConstPtr &msg_pc, const sensor_msgs:
     ROS_INFO("Fusion Complete!!");
     ros::shutdown();
   }
+  else if (global_flag == 3)
+  {
+    ROS_INFO_STREAM("Logging No." << cunt << " data...");
+    pcl::PointCloud<pcl::PointXYZI> point_cloud_livox;
+    pcl::PointCloud<pcl::PointXYZRGB> point_cloud_color;
+    pcl::fromROSMsg(*msg_pc, point_cloud_livox);
+
+    cv_bridge::CvImagePtr cv_ptr;
+    cv_ptr = cv_bridge::toCvCopy(msg_img, sensor_msgs::image_encodings::BGR8);
+
+    point_cloud_color = paintPointCloud(point_cloud_livox, cv_ptr->image);
+
+    pcl::io::savePCDFile(save_path + "/" + std::to_string(cunt) + ".pcd", point_cloud_color);
+    cv::imwrite(save_path + "/" + std::to_string(cunt) + ".jpg", cv_ptr->image);
+    cunt++;
+    global_flag = 0;
+  }
 
   // ros::shutdown();
 }
@@ -205,6 +228,22 @@ void KeyBoardCallBack(const std_msgs::UInt16 &msg)
     global_flag = 2;
     ROS_INFO("Receive FUSE point cloud command!");
   }
+  else if (msg.data == '3')
+  {
+    global_flag = 3;
+    ROS_INFO("Receive logging data command!");
+  }
+  else if (msg.data == '4')
+  {
+    ROS_INFO_STREAM("Logging over! Shutting down...");
+    std::ofstream outfile(save_path + "/description.txt", std::ios_base::trunc);
+    if (cunt == 0)
+      outfile << cunt;
+    else
+      outfile << cunt - 1;
+    outfile.close();
+    ros::shutdown();
+  }
 }
 
 int main(int argc, char **argv)
@@ -215,6 +254,7 @@ int main(int argc, char **argv)
 
   ros::NodeHandle n;
   std::string lidar_topic, camera_topic;
+  n.getParam("/pointcloud_fusion/save_path", save_path);
   n.getParam("/pointcloud_fusion/lidar_topic", lidar_topic);
   n.getParam("/pointcloud_fusion/camera_topic", camera_topic);
   n.getParam("/pointcloud_fusion/icp_config/MaxCorrespondenceDistance", icp_configs.MaxCorrespondenceDistance);
