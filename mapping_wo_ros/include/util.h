@@ -1,3 +1,4 @@
+#pragma once
 #include <iostream>
 #include <vector>
 
@@ -15,6 +16,8 @@ struct config_settings
   Eigen::Matrix4d extrinsic_matrix;
   Eigen::Matrix3d camera_matrix;
   double k1, k2, k3, p1, p2;
+  double max_cor_dis, trans_eps;
+  int iter_num;
   void print()
   {
     std::cout << "Data root: " << data_path << std::endl;
@@ -42,12 +45,15 @@ void readConfig()
   infile >> config.p1;
   infile >> config.p2;
   infile >> config.k3;
+  infile >> config.max_cor_dis;
+  infile >> config.trans_eps;
+  infile >> config.iter_num;
 
   infile.close();
   config.print();
 }
 
-void readData(std::vector<pcl::PointCloud<pcl::PointXYZRGB>::Ptr> pcs, std::vector<cv::Mat> imgs)
+void readData(std::vector<pcl::PointCloud<pcl::PointXYZRGB>::Ptr> &pcs, std::vector<cv::Mat> &imgs)
 {
   int data_len;
   std::ifstream infile(config.data_path + "description.txt");

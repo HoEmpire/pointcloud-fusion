@@ -10,7 +10,7 @@
 // config util
 struct config_settings
 {
-  Eigen::Matrix4d extrinsic_matrix, camera_matrix, projection_matrix;
+  Eigen::Matrix4f extrinsic_matrix, camera_matrix, projection_matrix;
   double k1, k2, k3, p1, p2;
   void print()
   {
