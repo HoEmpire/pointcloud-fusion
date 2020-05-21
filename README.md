@@ -5,7 +5,6 @@
 - [Introduction](#Introduction)
 - [Dependence](#Dependence)
 - [Usage](#Usage)
-- [Reference](#Reference)
 
 ## Introduction
 
@@ -14,6 +13,10 @@ In this project, we use a camera and a livox lidar to realize the function of a 
 We project the lidar point cloud to the image pixel by pre-known extrinsic calibration value, so as to colorize the lidar point cloud. Then we use a sequence of colorized pointclouds to recover a dense colorful map of an area.
 
 The advantages of this sensor set are longer detection range and better performance in outdoor scenario.
+
+The pipeline of the current version is:
+
+<div align=center><img width="600" height="300" src=""https://github.com/HoEmpire/pointcloud-fusion/raw/master/images/pipeline.png""/></div>
 
 ## Dependence
 
