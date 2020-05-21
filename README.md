@@ -16,7 +16,7 @@ The advantages of this sensor set are longer detection range and better performa
 
 The pipeline of the current version is:
 
-<div align=center><img width="600" height="300" src=""https://github.com/HoEmpire/pointcloud-fusion/raw/master/images/pipeline.png""/></div>
+<div align=center><img width="600" height="300" src="images/pipeline.png"/></div>
 
 ## Dependence
 
