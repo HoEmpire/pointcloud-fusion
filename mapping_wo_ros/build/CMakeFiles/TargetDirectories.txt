@@ -1,3 +1,0 @@
-/home/tim/lidar-camera-mapping/src/pointcloud_fusion/mapping_wo_ros/build/CMakeFiles/edit_cache.dir
-/home/tim/lidar-camera-mapping/src/pointcloud_fusion/mapping_wo_ros/build/CMakeFiles/rebuild_cache.dir
-/home/tim/lidar-camera-mapping/src/pointcloud_fusion/mapping_wo_ros/build/CMakeFiles/mapping.dir
