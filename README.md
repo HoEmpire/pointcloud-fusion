@@ -40,7 +40,7 @@ mkdir ws/src
 
 ```shell
 cd ws/src
-git clone
+git clone https://github.com/HoEmpire/pointcloud-fusion.git
 ```
 
 3. Copy the ros-keyboard in '/wsr/src'
