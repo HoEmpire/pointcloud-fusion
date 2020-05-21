@@ -1,3 +1,4 @@
+#pragma once
 #include <iostream>
 #include <vector>
 
@@ -12,12 +13,18 @@ struct config_settings
 {
   Eigen::Matrix4f extrinsic_matrix, camera_matrix, projection_matrix;
   double k1, k2, k3, p1, p2;
+  double max_cor_dis, trans_eps;
+  int iter_num;
   void print()
   {
-    std::cout << "Extrinsic matrix: \n" << extrinsic_matrix << std::endl;
-    std::cout << "Camera matrix: \n" << camera_matrix << std::endl;
-    std::cout << "Projection matrix: \n" << projection_matrix << std::endl;
-    std::cout << "Distortion coeff: \n" << k1 << " " << k2 << " " << k3 << " " << p1 << " " << p2 << std::endl;
+    std::cout << "Extrinsic matrix: \n"
+              << extrinsic_matrix << std::endl;
+    std::cout << "Camera matrix: \n"
+              << camera_matrix << std::endl;
+    std::cout << "Projection matrix: \n"
+              << projection_matrix << std::endl;
+    std::cout << "Distortion coeff: \n"
+              << k1 << " " << k2 << " " << k3 << " " << p1 << " " << p2 << std::endl;
   }
 } config;
 
@@ -28,28 +35,10 @@ void readConfig()
   // << std::endl;
   std::ifstream infile(pkg_loc + "/cfg/config.txt");
 
-  Eigen::Vector3d initial_rot_vec;
-  Eigen::Matrix4d initial_T;
-  for (int i = 0; i < 3; i++)
-  {
-    infile >> initial_rot_vec(i);
-  }
-  initial_T.setIdentity(4, 4);
-
-  Eigen::AngleAxisd rollAngle(initial_rot_vec[0], Eigen::Vector3d::UnitX());
-  Eigen::AngleAxisd pitchAngle(initial_rot_vec[1], Eigen::Vector3d::UnitY());
-  Eigen::AngleAxisd yawAngle(initial_rot_vec[2], Eigen::Vector3d::UnitZ());
-  Eigen::Matrix3d initial_rot_matrix;
-  initial_rot_matrix = yawAngle * pitchAngle * rollAngle;
-  initial_T.topLeftCorner(3, 3) = initial_rot_matrix;
-
   config.extrinsic_matrix.setIdentity(4, 4);
   for (int i = 0; i < 3; i++)
-    infile >> config.extrinsic_matrix(i, 3);
-  for (int i = 0; i < 3; i++)
-    for (int j = 0; j < 3; j++)
+    for (int j = 0; j < 4; j++)
       infile >> config.extrinsic_matrix(i, j);
-  config.extrinsic_matrix = config.extrinsic_matrix * initial_T;
 
   config.camera_matrix.setIdentity(4, 4);
   for (int i = 0; i < 3; i++)
@@ -64,6 +53,10 @@ void readConfig()
   infile >> config.p2;
   infile >> config.k3;
 
+  infile >> config.max_cor_dis;
+  infile >> config.trans_eps;
+  infile >> config.iter_num;
+
   infile.close();
   config.print();
 }
@@ -73,7 +66,7 @@ pcl::PointCloud<pcl::PointXYZRGB> paintPointCloud(pcl::PointCloud<pcl::PointXYZI
   pcl::PointCloud<pcl::PointXYZRGB> point_cloud_color;
   int row = img.rows;
   int col = img.cols;
-  Eigen::Vector4d p;
+  Eigen::Vector4f p;
 
   for (pcl::PointCloud<pcl::PointXYZI>::iterator pt = point_cloud.points.begin(); pt < point_cloud.points.end(); pt++)
   {
