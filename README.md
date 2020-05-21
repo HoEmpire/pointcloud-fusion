@@ -38,20 +38,20 @@ mkdir ws/src
 
 2. Clone this repository in `/ws/src`
 
-```
+```shell
 cd ws/src
 git clone
 ```
 
 3. Copy the ros-keyboard in '/wsr/src'
 
-```
+```shell
 copy -r pointcloud/dependence/ros-keyboard .
 ```
 
 4. Build the files
 
-```
+```shell
 catkin_make
 ```
 
@@ -94,7 +94,7 @@ pointcloud_fusion:
 
 ### 3. Run the code
 
-```
+```shell
 roslaunch pointcloud_fusion multi_color_pointcloud
 rosrun keyboard keyboard
 ```
