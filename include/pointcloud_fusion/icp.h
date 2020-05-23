@@ -41,7 +41,7 @@ public:
   }
 };
 
-void icp_nonlinear_with_normal(vector<PointCloud::Ptr> clouds, vector<Eigen::Matrix4f> init_T)
+void icpNonlinearWithNormal(vector<PointCloud::Ptr> clouds, vector<Eigen::Matrix4f> init_T)
 {
   Eigen::Matrix4f final_T;
   final_T.setIdentity(4, 4);
@@ -82,7 +82,7 @@ void icp_nonlinear_with_normal(vector<PointCloud::Ptr> clouds, vector<Eigen::Mat
     // Instantiate our custom point representation (defined above) ...
     MyPointRepresentation point_representation;
     // ... and weight the 'curvature' dimension so that it is balanced against x, y, and z
-    float alpha[4] = {1.0, 1.0, 1.0, 1.0};
+    float alpha[4] = { 1.0, 1.0, 1.0, 1.0 };
     point_representation.setRescaleValues(alpha);
 
     pcl::IterativeClosestPointNonLinear<PointNormalT, PointNormalT> icp;
@@ -90,8 +90,8 @@ void icp_nonlinear_with_normal(vector<PointCloud::Ptr> clouds, vector<Eigen::Mat
     icp.setInputSource(points_with_normals_src);
     icp.setInputTarget(points_with_normals_tgt);
 
-    icp.setMaxCorrespondenceDistance(config.max_cor_dis); // 0.10
-    icp.setTransformationEpsilon(config.trans_eps);       // 1e-10
+    icp.setMaxCorrespondenceDistance(config.max_cor_dis);  // 0.10
+    icp.setTransformationEpsilon(config.trans_eps);        // 1e-10
 
     icp.setPointRepresentation(boost::make_shared<const MyPointRepresentation>(point_representation));
     // Run the same optimization in a loop and visualize the results
@@ -127,8 +127,7 @@ void icp_nonlinear_with_normal(vector<PointCloud::Ptr> clouds, vector<Eigen::Mat
     // ROS_INFO_STREAM("Fitness Score: " << icp.getFitnessScore());
     // final_T = final_T * icp.getFinalTransformation();
     final_T = final_T * Ti * init_T[i];
-    std::cout << "Final Transformation: " << std::endl
-              << final_T << std::endl;
+    std::cout << "Final Transformation: " << std::endl << final_T << std::endl;
     std::cout << "***************************" << std::endl;
     pcl::PointCloud<pcl::PointXYZRGB> new_cloud;
 

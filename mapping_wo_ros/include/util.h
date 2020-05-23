@@ -10,7 +10,7 @@
 #include <opencv2/highgui/highgui.hpp>
 
 // config util
-struct config_settings
+struct ConfigSetting
 {
   std::string data_path;
   Eigen::Matrix4d extrinsic_matrix;
@@ -29,7 +29,7 @@ struct config_settings
 
 void readConfig()
 {
-  std::ifstream infile("./config/config.txt");
+  std::ifstream infile("/cfg/config.txt");
   infile >> config.data_path;
   config.extrinsic_matrix.setIdentity(4, 4);
   for (int i = 0; i < 3; i++)

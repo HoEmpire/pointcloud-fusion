@@ -41,7 +41,7 @@ public:
   }
 };
 
-void icp_nonlinear_with_normal(vector<PointCloud::Ptr> clouds, vector<Eigen::Matrix4f> init_T)
+void icpNonlinearWithNormal(vector<PointCloud::Ptr> clouds, vector<Eigen::Matrix4f> init_T)
 {
   Eigen::Matrix4f final_T;
   final_T.setIdentity(4, 4);

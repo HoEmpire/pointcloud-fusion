@@ -27,8 +27,8 @@
 #include <pcl/registration/icp.h>
 #include <pcl/registration/icp_nl.h>
 #include <boost/make_shared.hpp>
-#include "pointcloud_fusion/util.h"
 #include "pointcloud_fusion/icp.h"
+#include "pointcloud_fusion/util.h"
 #include "pointcloud_fusion/visual_odometry.h"
 
 using namespace std;
@@ -57,16 +57,20 @@ void callback(const sensor_msgs::PointCloud2ConstPtr &msg_pc, const sensor_msgs:
     cv_bridge::CvImagePtr cv_ptr;
     cv_ptr = cv_bridge::toCvCopy(msg_img, sensor_msgs::image_encodings::BGR8);
 
-    point_cloud_color = paintPointCloud(point_cloud_livox, cv_ptr->image);
+    cv::Mat image_undistorted;
+    undistortImage(cv_ptr->image, image_undistorted);
+    cv::Mat depth_map;
+
+    paintPointCloud(point_cloud_livox, image_undistorted, point_cloud_color, depth_map);  // TODO low in efficiency
     clouds.push_back(point_cloud_color.makeShared());
-    imgs.push_back(cv_ptr->image);
+    imgs.push_back(image_undistorted);
     pcl::io::savePCDFile("/home/tim/pc.pcd", point_cloud_color);
     global_flag = 0;
   }
   else if (global_flag == 2)
   {
-    vector<Matrix4f> T_init = cal_visual_odometry(imgs);
-    icp_nonlinear_with_normal(clouds, T_init);
+    vector<Matrix4f> T_init = calVisualOdometry(imgs);
+    icpNonlinearWithNormal(clouds, T_init);
     ROS_INFO("Fusion Complete!!");
     ros::shutdown();
   }
@@ -80,16 +84,30 @@ void callback(const sensor_msgs::PointCloud2ConstPtr &msg_pc, const sensor_msgs:
     cv_bridge::CvImagePtr cv_ptr;
     cv_ptr = cv_bridge::toCvCopy(msg_img, sensor_msgs::image_encodings::BGR8);
 
-    point_cloud_color = paintPointCloud(point_cloud_livox, cv_ptr->image);
+    cv::Mat image_undistorted;
+    // cv::Mat camera_matrix_cv;
+    // Eigen::Matrix3f tmp = config.camera_matrix.topLeftCorner(3, 3);
+    // cv::eigen2cv(tmp, camera_matrix_cv);
+    // vector<double> dist_coeff;
+    // dist_coeff.push_back(config.k1);
+    // dist_coeff.push_back(config.k2);
+    // dist_coeff.push_back(config.p1);
+    // dist_coeff.push_back(config.p2);
+    // cv::undistort(cv_ptr->image, image_undistored, camera_matrix_cv, dist_coeff);
+    undistortImage(cv_ptr->image, image_undistorted);
+
+    cv::Mat depth_map;
+    paintPointCloud(point_cloud_livox, image_undistorted, point_cloud_color, depth_map);  // TODO low in efficiency
 
     pcl::io::savePCDFile(save_path + "/" + to_string(cunt) + ".pcd", point_cloud_color);
-    cv::imwrite(save_path + "/" + to_string(cunt) + ".jpg", cv_ptr->image);
+    cv::imwrite(save_path + "/" + to_string(cunt) + ".jpg", image_undistorted);
+    cv::imwrite(save_path + "/" + to_string(cunt) + ".png", depth_map);
     cunt++;
     global_flag = 0;
   }
 }
 
-void KeyBoardCallBack(const std_msgs::UInt16 &msg)
+void keyBoardCallBack(const std_msgs::UInt16 &msg)
 {
   if (msg.data == '1')
   {
@@ -110,10 +128,8 @@ void KeyBoardCallBack(const std_msgs::UInt16 &msg)
   {
     ROS_INFO_STREAM("Logging over! Shutting down...");
     ofstream outfile(save_path + "/description.txt", ios_base::trunc);
-    if (cunt == 0)
-      outfile << cunt;
-    else
-      outfile << cunt - 1;
+
+    outfile << cunt;
     outfile.close();
     ros::shutdown();
   }
@@ -139,7 +155,7 @@ int main(int argc, char **argv)
 
   message_filters::Subscriber<sensor_msgs::PointCloud2> cloud_sub(n, lidar_topic, 1);
   message_filters::Subscriber<sensor_msgs::Image> camera_sub(n, camera_topic, 1);
-  ros::Subscriber key = n.subscribe("/keyboard/key", 1, KeyBoardCallBack);
+  ros::Subscriber key = n.subscribe("/keyboard/key", 1, keyBoardCallBack);
 
   typedef message_filters::sync_policies::ApproximateTime<sensor_msgs::PointCloud2, sensor_msgs::Image> MySyncPolicy;
   message_filters::Synchronizer<MySyncPolicy> sync(MySyncPolicy(10), cloud_sub, camera_sub);

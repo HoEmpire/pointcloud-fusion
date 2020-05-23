@@ -1,11 +1,11 @@
 #pragma once
-#include "util.h"
 #include <iostream>
 #include <opencv2/calib3d/calib3d.hpp>
 #include <opencv2/core/core.hpp>
 #include <opencv2/features2d/features2d.hpp>
 #include <opencv2/highgui/highgui.hpp>
 #include "opencv2/core/eigen.hpp"
+#include "util.h"
 using namespace std;
 using namespace cv;
 using namespace Eigen;
@@ -63,8 +63,8 @@ Point2d pixel2cam(const Point2d &p, const Mat &K)
   return Point2d((p.x - K.at<double>(0, 2)) / K.at<double>(0, 0), (p.y - K.at<double>(1, 2)) / K.at<double>(1, 1));
 }
 
-void pose_estimation_2d2d(std::vector<KeyPoint> keypoints_1, std::vector<KeyPoint> keypoints_2,
-                          std::vector<DMatch> matches, Mat &R, Mat &t)
+void poseEstimation2d2d(std::vector<KeyPoint> keypoints_1, std::vector<KeyPoint> keypoints_2,
+                        std::vector<DMatch> matches, Mat &R, Mat &t)
 {
   // 相机内参,TUM Freiburg2
   Mat K;
@@ -90,7 +90,7 @@ void pose_estimation_2d2d(std::vector<KeyPoint> keypoints_1, std::vector<KeyPoin
   recoverPose(essential_matrix, points1, points2, K, R, t);
 }
 
-vector<Matrix4f> cal_visual_odometry(vector<Mat> imgs)
+vector<Matrix4f> calVisualOdometry(vector<Mat> imgs)
 {
   vector<Matrix4f> T_between_frames;
   if (imgs.size() <= 1)
@@ -105,7 +105,7 @@ vector<Matrix4f> cal_visual_odometry(vector<Mat> imgs)
 
     //-- 估计两张图像间运动
     Mat R, t;
-    pose_estimation_2d2d(keypoints_1, keypoints_2, matches, R, t);
+    poseEstimation2d2d(keypoints_1, keypoints_2, matches, R, t);
     Matrix3f R_eigen;
     Vector3f t_eigen;
     Matrix4f T;
@@ -118,8 +118,7 @@ vector<Matrix4f> cal_visual_odometry(vector<Mat> imgs)
         config.extrinsic_matrix.cast<float>();
 
     // show in euler angle
-    cout << "T:" << endl
-         << T << endl;
+    cout << "T:" << endl << T << endl;
     cout << "*******************" << endl;
     T_between_frames.push_back(T);
   }

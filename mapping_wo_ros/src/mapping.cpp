@@ -12,6 +12,6 @@ int main(int argv, char **argc)
   readConfig();
   readData(pcs, imgs);
 
-  vector<Matrix4f> T_init = cal_visual_odometry(imgs);
-  icp_nonlinear_with_normal(pcs, T_init);
+  vector<Matrix4f> T_init = calVisualOdometry(imgs);
+  icpNonlinearWithNormal(pcs, T_init);
 }
