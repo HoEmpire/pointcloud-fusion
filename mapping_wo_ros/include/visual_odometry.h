@@ -10,8 +10,8 @@ using namespace std;
 using namespace cv;
 using namespace Eigen;
 
-void find_feature_matches(const Mat &img_1, const Mat &img_2, std::vector<KeyPoint> &keypoints_1,
-                          std::vector<KeyPoint> &keypoints_2, std::vector<DMatch> &matches)
+void findFeatureMatches(const Mat &img_1, const Mat &img_2, std::vector<KeyPoint> &keypoints_1,
+                        std::vector<KeyPoint> &keypoints_2, std::vector<DMatch> &matches)
 {
   //-- 初始化
   Mat descriptors_1, descriptors_2;
@@ -83,14 +83,14 @@ void poseEstimation2d2d(std::vector<KeyPoint> keypoints_1, std::vector<KeyPoint>
 
   //-- 计算本质矩阵
   Mat essential_matrix;
-  essential_matrix = findEssentialMat(points1, points2, K);
+  essential_matrix = findEssentialMat(points1, points2, K, FM_LMEDS);
 
   //-- 从本质矩阵中恢复旋转和平移信息.
   // 此函数仅在Opencv3中提供
   recoverPose(essential_matrix, points1, points2, K, R, t);
 }
 
-vector<Matrix4f> calVisualOdometry(vector<Mat> imgs)
+vector<Matrix4f> calVisualOdometry(vector<Mat> imgs, vector<Mat> depths)
 {
   vector<Matrix4f> T_between_frames;
   if (imgs.size() <= 1)
@@ -99,13 +99,25 @@ vector<Matrix4f> calVisualOdometry(vector<Mat> imgs)
   {
     vector<KeyPoint> keypoints_1, keypoints_2;
     vector<DMatch> matches;
-    find_feature_matches(imgs[i - 1], imgs[i], keypoints_1, keypoints_2, matches);
+    findFeatureMatches(imgs[i - 1], imgs[i], keypoints_1, keypoints_2, matches);
     cout << "*****计算第" << i << "组图片*****" << endl;
     cout << "一共找到了" << matches.size() << "组匹配点" << endl;
 
-    //-- 估计两张图像间运动
+    //对极几何估计两张图像间运动
     Mat R, t;
     poseEstimation2d2d(keypoints_1, keypoints_2, matches, R, t);
+
+    int count = 0;
+    for (vector<DMatch>::iterator m = matches.begin(); m != matches.end(); m++)
+    {
+      KeyPoint kp1, kp2;
+      kp1 = keypoints_1[m->queryIdx];
+      kp2 = keypoints_2[m->trainIdx];
+      if (depths[i - 1].at<ushort>(kp1.pt.y, kp1.pt.x) != 0 || depths[i].at<ushort>(kp2.pt.y, kp2.pt.x) != 0)
+        count++;
+    }
+    cout << "能够恢复绝对尺度的点数: " << count << endl;
+
     Matrix3f R_eigen;
     Vector3f t_eigen;
     Matrix4f T;
@@ -119,6 +131,8 @@ vector<Matrix4f> calVisualOdometry(vector<Mat> imgs)
 
     // show in euler angle
     cout << "T:" << endl << T << endl;
+    Vector3f euler_angle = rotationMatrixToEulerAngles(T.topLeftCorner(3, 3)) * 180 / PI;
+    cout << "euler anles = " << euler_angle.transpose() << endl;
     cout << "*******************" << endl;
     T_between_frames.push_back(T);
   }

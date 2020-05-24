@@ -9,12 +9,38 @@
 #include <opencv2/core/core.hpp>
 #include <opencv2/highgui/highgui.hpp>
 
+const float PI = 3.1415926535;
+using namespace Eigen;
+Vector3f rotationMatrixToEulerAngles(Matrix3f R)
+{
+  float sy = sqrt(R(0, 0) * R(0, 0) + R(1, 0) * R(1, 0));
+
+  bool singular = sy < 1e-6;  // If
+
+  float x, y, z;
+  if (!singular)
+  {
+    x = atan2(R(2, 1), R(2, 2));
+    y = atan2(-R(2, 0), sy);
+    z = atan2(R(1, 0), R(0, 0));
+  }
+  else
+  {
+    x = atan2(-R(1, 2), R(1, 1));
+    y = atan2(-R(2, 0), sy);
+    z = 0;
+  }
+  Vector3f result;
+  result << x, y, z;
+  return result;
+}
+
 // config util
 struct ConfigSetting
 {
   std::string data_path;
-  Eigen::Matrix4d extrinsic_matrix;
-  Eigen::Matrix3d camera_matrix;
+  Eigen::Matrix4f extrinsic_matrix;
+  Eigen::Matrix3f camera_matrix;
   double k1, k2, k3, p1, p2;
   double max_cor_dis, trans_eps;
   int iter_num;
@@ -29,7 +55,7 @@ struct ConfigSetting
 
 void readConfig()
 {
-  std::ifstream infile("/cfg/config.txt");
+  std::ifstream infile("./cfg/config.txt");
   infile >> config.data_path;
   config.extrinsic_matrix.setIdentity(4, 4);
   for (int i = 0; i < 3; i++)
@@ -53,7 +79,8 @@ void readConfig()
   config.print();
 }
 
-void readData(std::vector<pcl::PointCloud<pcl::PointXYZRGB>::Ptr> &pcs, std::vector<cv::Mat> &imgs)
+void readData(std::vector<pcl::PointCloud<pcl::PointXYZRGB>::Ptr> &pcs, std::vector<cv::Mat> &imgs,
+              std::vector<cv::Mat> &depths)
 {
   int data_len;
   std::ifstream infile(config.data_path + "description.txt");
@@ -73,5 +100,6 @@ void readData(std::vector<pcl::PointCloud<pcl::PointXYZRGB>::Ptr> &pcs, std::vec
     pcl::io::loadPCDFile<pcl::PointXYZRGB>(config.data_path + std::to_string(i) + ".pcd", *tmp);
     pcs.push_back(tmp);
     imgs.push_back(cv::imread(config.data_path + std::to_string(i) + ".jpg"));
+    depths.push_back(cv::imread(config.data_path + std::to_string(i) + ".png", CV_16UC1));
   }
 }

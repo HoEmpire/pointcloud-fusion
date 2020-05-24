@@ -86,7 +86,11 @@ void icpNonlinearWithNormal(vector<PointCloud::Ptr> clouds, vector<Eigen::Matrix
     point_representation.setRescaleValues(alpha);
 
     pcl::IterativeClosestPointNonLinear<PointNormalT, PointNormalT> icp;
-    pcl::transformPointCloud(*points_with_normals_src, *points_with_normals_src, init_T[i]);
+    Vector3f euler_angle = rotationMatrixToEulerAngles(init_T[i].topLeftCorner(3, 3)) * 180 / PI;
+    float angles =
+        sqrt(euler_angle[0] * euler_angle[0] + euler_angle[0] * euler_angle[0] + euler_angle[0] * euler_angle[0]);
+    if (angles < 30)  // TODO hardcode in here
+      pcl::transformPointCloud(*points_with_normals_src, *points_with_normals_src, init_T[i]);
     icp.setInputSource(points_with_normals_src);
     icp.setInputTarget(points_with_normals_tgt);
 
@@ -98,8 +102,8 @@ void icpNonlinearWithNormal(vector<PointCloud::Ptr> clouds, vector<Eigen::Matrix
 
     Eigen::Matrix4f Ti = Eigen::Matrix4f::Identity(), prev, targetToSource;
     PointCloudWithNormals::Ptr reg_result = points_with_normals_src;
-    icp.setMaximumIterations(2);
-    for (int j = 0; j < config.iter_num / 2; ++j)
+    icp.setMaximumIterations(1);
+    for (int j = 0; j < config.iter_num; ++j)
     {
       if (j % 10 == 0)
         PCL_INFO("Iteration Nr. %d.\n", j);
@@ -126,7 +130,13 @@ void icpNonlinearWithNormal(vector<PointCloud::Ptr> clouds, vector<Eigen::Matrix
     // ROS_INFO_STREAM("ICP has converged?: " << icp.hasConverged());
     // ROS_INFO_STREAM("Fitness Score: " << icp.getFitnessScore());
     // final_T = final_T * icp.getFinalTransformation();
-    final_T = final_T * Ti * init_T[i];
+    if (angles < 30)
+      final_T = final_T * Ti * init_T[i];
+    else
+    {
+      final_T = final_T * Ti;
+    }
+
     std::cout << "Final Transformation: " << std::endl << final_T << std::endl;
     std::cout << "***************************" << std::endl;
     pcl::PointCloud<pcl::PointXYZRGB> new_cloud;
