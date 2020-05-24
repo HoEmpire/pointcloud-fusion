@@ -72,7 +72,7 @@ void paintPointCloud(pcl::PointCloud<pcl::PointXYZI> point_cloud, const cv::Mat 
     if (p(2) == 0)
       continue;
     p = config.extrinsic_matrix * p;
-    float depth = p(2) * 100;
+    float depth = p(2) * 10000;
     p = p / p(2);
 
     // double r2 = p(0) * p(0) + p(1) * p(1);
@@ -108,7 +108,7 @@ void paintPointCloud(pcl::PointCloud<pcl::PointXYZI> point_cloud, const cv::Mat 
       new_point.r = img_ptr[3 * x + 2];
       point_cloud_color.push_back(new_point);
       if (depth >= 0)
-        depth_map.at<uchar>(y, 3 * x) = depth;
+        depth_map.at<ushort>(y, x) = ushort(depth);
     }
   }
 }
