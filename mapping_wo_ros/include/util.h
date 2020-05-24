@@ -5,6 +5,7 @@
 #include <pcl/io/pcd_io.h>
 #include <pcl/point_cloud.h>
 #include <Eigen/Core>
+#include <Eigen/LU>
 #include <opencv/cv.hpp>
 #include <opencv2/core/core.hpp>
 #include <opencv2/highgui/highgui.hpp>
@@ -33,6 +34,17 @@ Vector3f rotationMatrixToEulerAngles(Matrix3f R)
   Vector3f result;
   result << x, y, z;
   return result;
+}
+
+Matrix3f hat(Vector3f v)
+{
+  Matrix3f v_hat;
+  v_hat << 0, -v(2), v(1), v(2), 0, -v(0), -v(1), v(0), 0;
+}
+
+MatrixXf leastSquareMethod(MatrixXf A, VectorXf b)
+{
+  return (A.transpose() * A).inverse() * A.transpose() * b;
 }
 
 // config util

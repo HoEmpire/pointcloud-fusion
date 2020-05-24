@@ -16,8 +16,8 @@ void findFeatureMatches(const Mat &img_1, const Mat &img_2, std::vector<KeyPoint
   //-- 初始化
   Mat descriptors_1, descriptors_2;
 
-  Ptr<FeatureDetector> detector = ORB::create();
-  Ptr<DescriptorExtractor> descriptor = ORB::create();
+  Ptr<FeatureDetector> detector = ORB::create(1000);
+  Ptr<DescriptorExtractor> descriptor = ORB::create(1000);
   Ptr<DescriptorMatcher> matcher = DescriptorMatcher::create("BruteForce-Hamming");
   //-- 第一步:检测 Oriented FAST 角点位置
   detector->detect(img_1, keypoints_1);
@@ -64,7 +64,7 @@ Point2d pixel2cam(const Point2d &p, const Mat &K)
 }
 
 void poseEstimation2d2d(std::vector<KeyPoint> keypoints_1, std::vector<KeyPoint> keypoints_2,
-                        std::vector<DMatch> matches, Mat &R, Mat &t)
+                        std::vector<DMatch> matches, Mat &R, Mat &t, std::vector<DMatch> &inliers)
 {
   // 相机内参,TUM Freiburg2
   Mat K;
@@ -83,7 +83,14 @@ void poseEstimation2d2d(std::vector<KeyPoint> keypoints_1, std::vector<KeyPoint>
 
   //-- 计算本质矩阵
   Mat essential_matrix;
-  essential_matrix = findEssentialMat(points1, points2, K, FM_LMEDS);
+  Mat mask;
+  inliers.clear();
+  essential_matrix = findEssentialMat(points1, points2, K, FM_RANSAC, 0.999, 0.8, mask);
+  for (int i = 0; i < mask.rows; i++)
+  {
+    if (mask.at<uchar>(i, 1) == 1)
+      inliers.push_back(matches[i]);
+  }
 
   //-- 从本质矩阵中恢复旋转和平移信息.
   // 此函数仅在Opencv3中提供
@@ -98,17 +105,17 @@ vector<Matrix4f> calVisualOdometry(vector<Mat> imgs, vector<Mat> depths)
   for (int i = 1; i < imgs.size(); i++)
   {
     vector<KeyPoint> keypoints_1, keypoints_2;
-    vector<DMatch> matches;
+    vector<DMatch> matches, inliers;
     findFeatureMatches(imgs[i - 1], imgs[i], keypoints_1, keypoints_2, matches);
     cout << "*****计算第" << i << "组图片*****" << endl;
     cout << "一共找到了" << matches.size() << "组匹配点" << endl;
 
     //对极几何估计两张图像间运动
     Mat R, t;
-    poseEstimation2d2d(keypoints_1, keypoints_2, matches, R, t);
+    poseEstimation2d2d(keypoints_1, keypoints_2, matches, R, t, inliers);
 
     int count = 0;
-    for (vector<DMatch>::iterator m = matches.begin(); m != matches.end(); m++)
+    for (vector<DMatch>::iterator m = inliers.begin(); m != inliers.end(); m++)
     {
       KeyPoint kp1, kp2;
       kp1 = keypoints_1[m->queryIdx];
@@ -126,13 +133,20 @@ vector<Matrix4f> calVisualOdometry(vector<Mat> imgs, vector<Mat> depths)
     T.setIdentity(4, 4);
     T.topLeftCorner(3, 3) = R_eigen;
     // T.topRightCorner(3,1) = t_eigen;
-    T = config.extrinsic_matrix.inverse().cast<float>() * T.inverse().cast<float>() *
-        config.extrinsic_matrix.cast<float>();
+    T = config.extrinsic_matrix.inverse() * T.inverse() * config.extrinsic_matrix;
 
     // show in euler angle
     cout << "T:" << endl << T << endl;
     Vector3f euler_angle = rotationMatrixToEulerAngles(T.topLeftCorner(3, 3)) * 180 / PI;
     cout << "euler anles = " << euler_angle.transpose() << endl;
+    float angles =
+        sqrt(euler_angle[0] * euler_angle[0] + euler_angle[0] * euler_angle[0] + euler_angle[0] * euler_angle[0]);
+    if (angles > 30)  // TODO hardcode in here
+    {
+      cout << "Visual odometry degenerate!!" << endl;
+      T.setIdentity(4, 4);
+    }
+
     cout << "*******************" << endl;
     T_between_frames.push_back(T);
   }
