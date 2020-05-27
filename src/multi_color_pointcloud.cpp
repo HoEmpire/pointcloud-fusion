@@ -100,6 +100,7 @@ void callback(const sensor_msgs::PointCloud2ConstPtr &msg_pc, const sensor_msgs:
     paintPointCloud(point_cloud_livox, image_undistorted, point_cloud_color, depth_map);  // TODO low in efficiency
 
     pcl::io::savePCDFile(save_path + "/" + to_string(cunt) + ".pcd", point_cloud_color);
+    // pcl::io::savePLYFile(save_path + "/" + to_string(cunt) + ".ply", point_cloud_color);
     cv::imwrite(save_path + "/" + to_string(cunt) + ".jpg", image_undistorted);
     cv::imwrite(save_path + "/" + to_string(cunt) + ".png", depth_map);
     cunt++;

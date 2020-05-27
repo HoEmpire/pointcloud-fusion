@@ -16,6 +16,7 @@ struct ConfigSetting
   double k1, k2, k3, p1, p2;
   double max_cor_dis, trans_eps;
   int iter_num;
+  double c1, c2, c3;
   void print()
   {
     std::cout << "Extrinsic matrix: \n" << extrinsic_matrix << std::endl;
@@ -51,6 +52,10 @@ void readConfig()
   infile >> config.max_cor_dis;
   infile >> config.trans_eps;
   infile >> config.iter_num;
+
+  infile >> config.c1;
+  infile >> config.c2;
+  infile >> config.c3;
 
   infile.close();
   config.print();

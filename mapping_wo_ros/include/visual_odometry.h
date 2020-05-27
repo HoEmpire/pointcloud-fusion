@@ -10,8 +10,8 @@ using namespace std;
 using namespace cv;
 using namespace Eigen;
 
-void findFeatureMatches(const Mat &img_1, const Mat &img_2, std::vector<KeyPoint> &keypoints_1,
-                        std::vector<KeyPoint> &keypoints_2, std::vector<DMatch> &matches)
+void findFeatureMatches(const Mat &img_1, const Mat &img_2, vector<KeyPoint> &keypoints_1,
+                        vector<KeyPoint> &keypoints_2, vector<DMatch> &matches)
 {
   //-- 初始化
   Mat descriptors_1, descriptors_2;
@@ -60,11 +60,11 @@ void findFeatureMatches(const Mat &img_1, const Mat &img_2, std::vector<KeyPoint
 
 Point2d pixel2cam(const Point2d &p, const Mat &K)
 {
-  return Point2d((p.x - K.at<double>(0, 2)) / K.at<double>(0, 0), (p.y - K.at<double>(1, 2)) / K.at<double>(1, 1));
+  return Point2d((p.x - K.at<float>(0, 2)) / K.at<float>(0, 0), (p.y - K.at<float>(1, 2)) / K.at<float>(1, 1));
 }
 
-void poseEstimation2d2d(std::vector<KeyPoint> keypoints_1, std::vector<KeyPoint> keypoints_2,
-                        std::vector<DMatch> matches, Mat &R, Mat &t, std::vector<DMatch> &inliers)
+void poseEstimation2d2d(vector<KeyPoint> keypoints_1, vector<KeyPoint> keypoints_2, vector<DMatch> matches, Mat &R,
+                        Mat &t, vector<DMatch> &inliers)
 {
   // 相机内参,TUM Freiburg2
   Mat K;
@@ -88,13 +88,74 @@ void poseEstimation2d2d(std::vector<KeyPoint> keypoints_1, std::vector<KeyPoint>
   essential_matrix = findEssentialMat(points1, points2, K, FM_RANSAC, 0.999, 0.8, mask);
   for (int i = 0; i < mask.rows; i++)
   {
-    if (mask.at<uchar>(i, 1) == 1)
+    if (mask.at<uchar>(i, 0) == 1)
       inliers.push_back(matches[i]);
   }
 
   //-- 从本质矩阵中恢复旋转和平移信息.
   // 此函数仅在Opencv3中提供
   recoverPose(essential_matrix, points1, points2, K, R, t);
+}
+
+inline bool isZero(float d)
+{
+  return abs(d) < 1e-6;
+}
+
+float computeScaleFromPoint(Vector3f x1, Vector3f x2, float d1, float d2, Matrix3f R, Vector3f t)
+{
+  MatrixXf A(3, 1);
+  Vector3f b;
+  int flag = -1;
+  if (!isZero(d1) && isZero(d2))
+  {
+    flag = 1;
+    A = hat(x2) * t;
+    b = d1 * hat(x2) * R * x1;
+  }
+  else if (isZero(d1) && !isZero(d2))
+  {
+    flag = 2;
+    A = hat(x1) * R.inverse() * t;
+    b = hat(x1) * R.inverse() * x2 * d2;
+  }
+  else if (!isZero(d1) && !isZero(d2))
+  {
+    flag = 3;
+    A = t;
+    b = d2 * x2 - d1 * R * x1;
+  }
+  cout << "Recover Svale::Point type: " << flag << endl;
+  // cout << d1 << endl;
+  // cout << d2 << endl;
+  // cout << x1 << endl;
+  // cout << x2 << endl;
+  // cout << R << endl;
+  // cout << t << endl;
+  // cout << A << endl;
+  // cout << b << endl;
+  return leastSquareMethod(A, b)(0, 0);
+}
+
+float recoverScale(vector<KeyPoint> keypoints_1, vector<KeyPoint> keypoints_2, vector<DMatch> inliers_with_depth,
+                   vector<float> depth1, vector<float> depth2, Matrix3f R, Vector3f t, Mat K)
+{
+  vector<float> scale;
+  for (int i = 0; i < inliers_with_depth.size(); i++)
+  {
+    Vector3f x1, x2;
+    Point2d p1, p2;
+    p1 = pixel2cam(keypoints_1[inliers_with_depth[i].queryIdx].pt, K);
+    p2 = pixel2cam(keypoints_2[inliers_with_depth[i].trainIdx].pt, K);
+    x1 << float(p1.x), float(p1.y), 1;
+    x2 << float(p2.x), float(p2.y), 1;
+    float tmp_scale = computeScaleFromPoint(x1, x2, depth1[i], depth2[i], R, t);
+    cout << "Recover Svale::Scale: " << tmp_scale << endl;
+    scale.push_back(tmp_scale);
+  }
+  float average_scale = std::accumulate(scale.begin(), scale.end(), 0.0) / scale.size();
+  cout << "Recover Svale::Finish recover scale!!!! " << endl;
+  cout << "Recover Svale::Average Scale: " << average_scale << endl;
 }
 
 vector<Matrix4f> calVisualOdometry(vector<Mat> imgs, vector<Mat> depths)
@@ -115,13 +176,23 @@ vector<Matrix4f> calVisualOdometry(vector<Mat> imgs, vector<Mat> depths)
     poseEstimation2d2d(keypoints_1, keypoints_2, matches, R, t, inliers);
 
     int count = 0;
+    vector<DMatch> inliers_with_depth;
+    vector<float> depth1, depth2;
     for (vector<DMatch>::iterator m = inliers.begin(); m != inliers.end(); m++)
     {
       KeyPoint kp1, kp2;
       kp1 = keypoints_1[m->queryIdx];
       kp2 = keypoints_2[m->trainIdx];
-      if (depths[i - 1].at<ushort>(kp1.pt.y, kp1.pt.x) != 0 || depths[i].at<ushort>(kp2.pt.y, kp2.pt.x) != 0)
+      ushort d1, d2;
+      d1 = depths[i - 1].at<ushort>(kp1.pt.y, kp1.pt.x);
+      d2 = depths[i].at<ushort>(kp2.pt.y, kp2.pt.x);
+      if (d1 != 0 || d2 != 0)
+      {
         count++;
+        inliers_with_depth.push_back(*m);
+        depth1.push_back(float(d1 / 10000.0));
+        depth2.push_back(float(d2 / 10000.0));
+      }
     }
     cout << "能够恢复绝对尺度的点数: " << count << endl;
 
@@ -130,9 +201,15 @@ vector<Matrix4f> calVisualOdometry(vector<Mat> imgs, vector<Mat> depths)
     Matrix4f T;
     cv2eigen(R, R_eigen);
     cv2eigen(t, t_eigen);
+
+    Mat K;
+    Matrix3f camera_matrix = config.camera_matrix.topLeftCorner(3, 3);
+    eigen2cv(camera_matrix, K);
+    float scale = recoverScale(keypoints_1, keypoints_2, inliers_with_depth, depth1, depth2, R_eigen, t_eigen, K);
+
     T.setIdentity(4, 4);
     T.topLeftCorner(3, 3) = R_eigen;
-    // T.topRightCorner(3,1) = t_eigen;
+    T.topRightCorner(3, 1) = t_eigen * scale;
     T = config.extrinsic_matrix.inverse() * T.inverse() * config.extrinsic_matrix;
 
     // show in euler angle
@@ -143,7 +220,7 @@ vector<Matrix4f> calVisualOdometry(vector<Mat> imgs, vector<Mat> depths)
         sqrt(euler_angle[0] * euler_angle[0] + euler_angle[0] * euler_angle[0] + euler_angle[0] * euler_angle[0]);
     if (angles > 30)  // TODO hardcode in here
     {
-      cout << "Visual odometry degenerate!!" << endl;
+      cout << "WARNING:Visual odometry degenerate!!" << endl;
       T.setIdentity(4, 4);
     }
 

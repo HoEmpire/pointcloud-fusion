@@ -20,10 +20,10 @@ The pipeline of the current version is:
 
 ## Dependence
 
-- PCL
-- ROS
-- OpenCV
-- Eigen
+- PCL >= 1.7
+- ROS-kinetic
+- OpenCV >= 4.2
+- Eigen >= 3.4
 - ros-keyboard(`/pointcloud_fusion/dependence/ros-keyboard`)
 
 ## Usage
