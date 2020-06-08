@@ -41,7 +41,7 @@ void findFeatureMatches(const Mat &img_1, const Mat &img_2, vector<KeyPoint> &ke
 
 Point2d pixel2cam(const Point2d &p, const Mat &K)
 {
-  return Point2d((p.x - K.at<float>(0, 2)) / K.at<float>(0, 0), (p.y - K.at<float>(1, 2)) / K.at<float>(1, 1));
+  return Point2d((p.x - K.at<float>(0, 2)) / K.at<float>(0, 0), (p.y - K.at<float>(1, 2)) / K.at<float>(1, 1)); //without unit
 }
 
 void poseEstimation2d2d(vector<KeyPoint> keypoints_1, vector<KeyPoint> keypoints_2, vector<DMatch> matches, Mat &R,
@@ -91,7 +91,7 @@ float computeScaleFromPoint(Vector3f x1, Vector3f x2, float d1, float d2, Matrix
   {
     flag = 1;
     A = hat(x2) * t;
-    b = d1 * hat(x2) * R * x1;
+    b = -d1 * hat(x2) * R * x1;
   }
   else if (isZero(d1) && !isZero(d2))
   {
@@ -102,25 +102,24 @@ float computeScaleFromPoint(Vector3f x1, Vector3f x2, float d1, float d2, Matrix
   else if (!isZero(d1) && !isZero(d2))
   {
     flag = 3;
-    A = t;
-    b = d2 * x2 - d1 * R * x1;
+    A = hat(x2) * t;
+    b = -d1 * hat(x2) * R * x1;
   }
-  cout << "Recover Svale::Point type: " << flag << endl;
+  // cout << endl;
+  // cout << "Recover Svale::Point type: " << flag << endl;
+  // cout << "Recover Svale::x1,x2: " << endl;
   // cout << d1 << endl;
   // cout << d2 << endl;
   // cout << x1 << endl;
   // cout << x2 << endl;
-  // cout << R << endl;
-  // cout << t << endl;
-  // cout << A << endl;
-  // cout << b << endl;
   return leastSquareMethod(A, b)(0, 0);
 }
 
+//TODO May add RANSAC in here
 float recoverScale(vector<KeyPoint> keypoints_1, vector<KeyPoint> keypoints_2, vector<DMatch> inliers_with_depth,
-                   vector<float> depth1, vector<float> depth2, Matrix3f R, Vector3f t, Mat K)
+                   vector<float> depth1, vector<float> depth2, Matrix3f R, Vector3f t, Mat K, const int max_iter = 20, const float threshold = 0.5)
 {
-  vector<float> scale;
+  vector<float> scale, scale_inliers_best, scale_inliers_tmp;
   for (int i = 0; i < inliers_with_depth.size(); i++)
   {
     Vector3f x1, x2;
@@ -130,10 +129,29 @@ float recoverScale(vector<KeyPoint> keypoints_1, vector<KeyPoint> keypoints_2, v
     x1 << float(p1.x), float(p1.y), 1;
     x2 << float(p2.x), float(p2.y), 1;
     float tmp_scale = computeScaleFromPoint(x1, x2, depth1[i], depth2[i], R, t);
-    cout << "Recover Svale::Scale: " << tmp_scale << endl;
+    // cout << "Recover Svale::Scale: " << tmp_scale << endl;
     scale.push_back(tmp_scale);
   }
-  float average_scale = std::accumulate(scale.begin(), scale.end(), 0.0) / scale.size();
+
+  for (int iter = 0; iter < max_iter; iter++)
+  {
+    int rand_index = rand() % scale.size();
+    vector<float>().swap(scale_inliers_tmp);
+    for (int i = 0; i < scale.size(); i++)
+    {
+      if (abs(scale[i] - scale[rand_index]) / (abs(scale[i]) + 1e-9) < threshold)
+        scale_inliers_tmp.push_back(scale[i]);
+    }
+    if (iter == 0 || scale_inliers_best.size() < scale_inliers_tmp.size())
+      scale_inliers_best.assign(scale_inliers_tmp.begin(), scale_inliers_tmp.end());
+  }
+
+  cout << "Recover Svale::After RANSAC " << scale_inliers_best.size() << " sets of matches left" << endl;
+  float average_scale;
+  if (scale_inliers_best.size() > 10)
+    average_scale = std::accumulate(scale_inliers_best.begin(), scale_inliers_best.end(), 0.0) / scale_inliers_best.size();
+  else
+    average_scale = std::accumulate(scale.begin(), scale.end(), 0.0) / scale.size();
   cout << "Recover Svale::Finish recover scale!!!! " << endl;
   cout << "Recover Svale::Average Scale: " << average_scale << endl;
 }
