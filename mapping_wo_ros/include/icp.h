@@ -7,6 +7,7 @@
 #include <pcl/point_types.h>
 #include <pcl/registration/icp.h>
 #include <pcl/registration/icp_nl.h>
+#include <pcl/registration/ndt.h>
 #include <Eigen/Core>
 #include <boost/make_shared.hpp>
 #include "util.h"
@@ -81,7 +82,7 @@ void icpNonlinearWithNormal(vector<PointCloud::Ptr> clouds, vector<Eigen::Matrix
     // Instantiate our custom point representation (defined above) ...
     MyPointRepresentation point_representation;
     // ... and weight the 'curvature' dimension so that it is balanced against x, y, and z
-    float alpha[4] = { 1.0, 1.0, 1.0, 1.0 };
+    float alpha[4] = {1.0, 1.0, 1.0, 1.0};
     point_representation.setRescaleValues(alpha);
 
     pcl::IterativeClosestPointNonLinear<PointNormalT, PointNormalT> icp;
@@ -90,8 +91,8 @@ void icpNonlinearWithNormal(vector<PointCloud::Ptr> clouds, vector<Eigen::Matrix
     icp.setInputSource(points_with_normals_src);
     icp.setInputTarget(points_with_normals_tgt);
 
-    icp.setMaxCorrespondenceDistance(config.max_cor_dis);  // 0.10
-    icp.setTransformationEpsilon(config.trans_eps);        // 1e-10
+    icp.setMaxCorrespondenceDistance(config.max_cor_dis); // 0.10
+    icp.setTransformationEpsilon(config.trans_eps);       // 1e-10
 
     icp.setPointRepresentation(boost::make_shared<const MyPointRepresentation>(point_representation));
     // Run the same optimization in a loop and visualize the results
@@ -128,7 +129,70 @@ void icpNonlinearWithNormal(vector<PointCloud::Ptr> clouds, vector<Eigen::Matrix
     // final_T = final_T * icp.getFinalTransformation();
     final_T = final_T * Ti * init_T[i];
 
-    std::cout << "Final Transformation: " << std::endl << final_T << std::endl;
+    std::cout << "Final Transformation: " << std::endl
+              << final_T << std::endl;
+    std::cout << "***************************" << std::endl;
+    pcl::PointCloud<pcl::PointXYZRGB> new_cloud;
+
+    pcl::transformPointCloud(*clouds[i + 1], new_cloud, final_T);
+    origin += new_cloud;
+    wo_icp += *clouds[i + 1];
+  }
+  pcl::io::savePCDFile("/home/tim/icp.pcd", origin);
+  pcl::io::savePCDFile("/home/tim/wo_icp.pcd", wo_icp);
+  PCL_INFO("Fusion Complete!!");
+}
+
+void ndtRegistration(vector<PointCloud::Ptr> clouds, vector<Eigen::Matrix4f> init_T)
+{
+  Eigen::Matrix4f final_T;
+  final_T.setIdentity(4, 4);
+  pcl::PointCloud<pcl::PointXYZRGB> origin = *clouds[0];
+  pcl::PointCloud<pcl::PointXYZRGB> wo_icp = *clouds[0];
+  // PCL_INFO("Fusing point clouds");
+  for (int i = 0; i < clouds.size() - 1; i++)
+  {
+    std::cout << "*****fusing point cloud set " << i << " *****" << std::endl;
+    PointCloud::Ptr src(new PointCloud);
+    PointCloud::Ptr tgt(new PointCloud);
+    pcl::VoxelGrid<PointT> grid;
+
+    grid.setLeafSize(0.05, 0.05, 0.05);
+    grid.setInputCloud(clouds[i + 1]);
+    grid.filter(*src);
+
+    grid.setInputCloud(clouds[i]);
+    grid.filter(*tgt);
+
+    //初始化正态分布变换（NDT）
+    pcl::NormalDistributionsTransform<PointT, PointT> ndt;
+    //设置依赖尺度NDT参数
+    //为终止条件设置最小转换差异
+    ndt.setTransformationEpsilon(config.c1); // 0.01
+    //为More-Thuente线搜索设置最大步长
+    ndt.setStepSize(config.c2); // 0.1
+    //设置NDT网格结构的分辨率（VoxelGridCovariance）
+    ndt.setResolution(config.c3); // 1.0
+    //设置匹配迭代的最大次数
+    ndt.setMaximumIterations(config.iter_num);
+    // 设置要配准的点云
+    ndt.setInputSource(src);
+    //设置点云配准目标
+    ndt.setInputTarget(tgt);
+
+    //计算需要的刚体变换以便将输入的点云匹配到目标点云
+    pcl::PointCloud<PointT>::Ptr output_cloud(new pcl::PointCloud<PointT>);
+    ndt.align(*output_cloud, init_T[i]);
+    std::cout << "Normal Distributions Transform has converged:" << ndt.hasConverged()
+              << " score: " << ndt.getFitnessScore() << std::endl;
+
+    // ROS_INFO_STREAM("ICP has converged?: " << icp.hasConverged());
+    // ROS_INFO_STREAM("Fitness Score: " << icp.getFitnessScore());
+    // final_T = final_T * icp.getFinalTransformation();
+    final_T = final_T * ndt.getFinalTransformation();
+
+    std::cout << "Final Transformation: " << std::endl
+              << final_T << std::endl;
     std::cout << "***************************" << std::endl;
     pcl::PointCloud<pcl::PointXYZRGB> new_cloud;
 

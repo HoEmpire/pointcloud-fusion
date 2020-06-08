@@ -6,6 +6,7 @@
 #include <pcl/point_cloud.h>
 #include <ros/package.h>
 #include <Eigen/Core>
+#include <Eigen/LU>
 #include <opencv2/core/core.hpp>
 using namespace std;
 

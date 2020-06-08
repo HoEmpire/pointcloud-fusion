@@ -15,5 +15,6 @@ int main(int argv, char **argc)
   readData(pcs, imgs, depths);
 
   vector<Matrix4f> T_init = calVisualOdometry(imgs, depths);
-  icpNonlinearWithNormal(pcs, T_init);
+  // icpNonlinearWithNormal(pcs, T_init);
+  ndtRegistration(pcs, T_init);
 }

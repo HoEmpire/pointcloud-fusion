@@ -4,10 +4,12 @@
 #include <opencv2/core/core.hpp>
 #include <opencv2/features2d/features2d.hpp>
 #include <opencv2/highgui/highgui.hpp>
+#include "opencv2/xfeatures2d.hpp"
 #include "opencv2/core/eigen.hpp"
 #include "util.h"
 using namespace std;
 using namespace cv;
+using namespace cv::xfeatures2d;
 using namespace Eigen;
 
 void findFeatureMatches(const Mat &img_1, const Mat &img_2, vector<KeyPoint> &keypoints_1,
@@ -16,44 +18,23 @@ void findFeatureMatches(const Mat &img_1, const Mat &img_2, vector<KeyPoint> &ke
   //-- 初始化
   Mat descriptors_1, descriptors_2;
 
-  Ptr<FeatureDetector> detector = ORB::create(1000);
-  Ptr<DescriptorExtractor> descriptor = ORB::create(1000);
-  Ptr<DescriptorMatcher> matcher = DescriptorMatcher::create("BruteForce-Hamming");
-  //-- 第一步:检测 Oriented FAST 角点位置
-  detector->detect(img_1, keypoints_1);
-  detector->detect(img_2, keypoints_2);
+  Ptr<SIFT> detector = SIFT::create(1000);
+  Ptr<DescriptorMatcher> matcher = DescriptorMatcher::create(DescriptorMatcher::FLANNBASED);
 
-  //-- 第二步:根据角点位置计算 BRIEF 描述子
-  descriptor->compute(img_1, keypoints_1, descriptors_1);
-  descriptor->compute(img_2, keypoints_2, descriptors_2);
+  detector->detectAndCompute(img_1, noArray(), keypoints_1, descriptors_1);
+  detector->detectAndCompute(img_2, noArray(), keypoints_2, descriptors_2);
 
-  //-- 第三步:对两幅图像中的BRIEF描述子进行匹配，使用 Hamming 距离
-  vector<DMatch> match;
-  // BFMatcher matcher ( NORM_HAMMING );
-  matcher->match(descriptors_1, descriptors_2, match);
+  vector<vector<DMatch>> knn_matches;
+  matcher->knnMatch(descriptors_1, descriptors_2, knn_matches, 2);
 
-  //-- 第四步:匹配点对筛选
-  double min_dist = 10000, max_dist = 0;
+  //-- Filter matches using the Lowe's ratio test
+  const float ratio_thresh = 0.7f;
 
-  //找出所有匹配之间的最小距离和最大距离, 即是最相似的和最不相似的两组点之间的距离
-  for (int i = 0; i < descriptors_1.rows; i++)
+  for (size_t i = 0; i < knn_matches.size(); i++)
   {
-    double dist = match[i].distance;
-    if (dist < min_dist)
-      min_dist = dist;
-    if (dist > max_dist)
-      max_dist = dist;
-  }
-
-  //   printf("-- Max dist : %f \n", max_dist);
-  //   printf("-- Min dist : %f \n", min_dist);
-
-  //当描述子之间的距离大于两倍的最小距离时,即认为匹配有误.但有时候最小距离会非常小,设置一个经验值30作为下限.
-  for (int i = 0; i < descriptors_1.rows; i++)
-  {
-    if (match[i].distance <= max(2 * min_dist, 30.0))
+    if (knn_matches[i][0].distance < ratio_thresh * knn_matches[i][1].distance)
     {
-      matches.push_back(match[i]);
+      matches.push_back(knn_matches[i][0]);
     }
   }
 }
@@ -91,7 +72,6 @@ void poseEstimation2d2d(vector<KeyPoint> keypoints_1, vector<KeyPoint> keypoints
     if (mask.at<uchar>(i, 0) == 1)
       inliers.push_back(matches[i]);
   }
-
   //-- 从本质矩阵中恢复旋转和平移信息.
   // 此函数仅在Opencv3中提供
   recoverPose(essential_matrix, points1, points2, K, R, t);
@@ -175,6 +155,7 @@ vector<Matrix4f> calVisualOdometry(vector<Mat> imgs, vector<Mat> depths)
     Mat R, t;
     poseEstimation2d2d(keypoints_1, keypoints_2, matches, R, t, inliers);
 
+    cout << "finish pose estimation" << endl;
     int count = 0;
     vector<DMatch> inliers_with_depth;
     vector<float> depth1, depth2;
@@ -213,12 +194,13 @@ vector<Matrix4f> calVisualOdometry(vector<Mat> imgs, vector<Mat> depths)
     T = config.extrinsic_matrix.inverse() * T.inverse() * config.extrinsic_matrix;
 
     // show in euler angle
-    cout << "T:" << endl << T << endl;
+    cout << "T:" << endl
+         << T << endl;
     Vector3f euler_angle = rotationMatrixToEulerAngles(T.topLeftCorner(3, 3)) * 180 / PI;
     cout << "euler anles = " << euler_angle.transpose() << endl;
     float angles =
         sqrt(euler_angle[0] * euler_angle[0] + euler_angle[0] * euler_angle[0] + euler_angle[0] * euler_angle[0]);
-    if (angles > 30)  // TODO hardcode in here
+    if (angles > 30) // TODO hardcode in here
     {
       cout << "WARNING:Visual odometry degenerate!!" << endl;
       T.setIdentity(4, 4);

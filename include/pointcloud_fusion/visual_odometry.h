@@ -114,8 +114,7 @@ vector<Matrix4f> calVisualOdometry(vector<Mat> imgs)
     T.setIdentity(4, 4);
     T.topLeftCorner(3, 3) = R_eigen;
     // T.topRightCorner(3,1) = t_eigen;
-    T = config.extrinsic_matrix.inverse().cast<float>() * T.inverse().cast<float>() *
-        config.extrinsic_matrix.cast<float>();
+    T = config.extrinsic_matrix.inverse() * T.inverse() * config.extrinsic_matrix;
 
     // show in euler angle
     cout << "T:" << endl << T << endl;
