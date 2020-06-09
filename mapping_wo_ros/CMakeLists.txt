@@ -31,7 +31,7 @@ add_executable(mapping src/mapping.cpp)
 target_link_libraries(mapping ${PCL_LIBRARIES} ${Eigen3_INCLUDE_DIRS} ${OpenCV_LIBS})  
 
 # add_executable(test src/test.cpp) 
-# target_link_libraries(test ${Eigen3_INCLUDE_DIRS} ${OpenCV_LIBS})  
+# target_link_libraries(test ${PCL_LIBRARIES} ${Eigen3_INCLUDE_DIRS} ${OpenCV_LIBS})  
 
 # add_executable(teaser_cpp_ply src/test.cpp)
 # target_link_libraries(teaser_cpp_ply teaserpp::teaser_registration teaserpp::teaser_io ${Eigen3_INCLUDE_DIRS} ${OpenCV_LIBS} ${PCL_LIBRARIES})
