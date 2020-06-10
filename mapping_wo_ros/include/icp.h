@@ -82,7 +82,7 @@ void icpNonlinearWithNormal(vector<PointCloud::Ptr> clouds, vector<Eigen::Matrix
     // Instantiate our custom point representation (defined above) ...
     MyPointRepresentation point_representation;
     // ... and weight the 'curvature' dimension so that it is balanced against x, y, and z
-    float alpha[4] = {1.0, 1.0, 1.0, 1.0};
+    float alpha[4] = { 1.0, 1.0, 1.0, 1.0 };
     point_representation.setRescaleValues(alpha);
 
     pcl::IterativeClosestPointNonLinear<PointNormalT, PointNormalT> icp;
@@ -91,8 +91,8 @@ void icpNonlinearWithNormal(vector<PointCloud::Ptr> clouds, vector<Eigen::Matrix
     icp.setInputSource(points_with_normals_src);
     icp.setInputTarget(points_with_normals_tgt);
 
-    icp.setMaxCorrespondenceDistance(config.max_cor_dis); // 0.10
-    icp.setTransformationEpsilon(config.trans_eps);       // 1e-10
+    icp.setMaxCorrespondenceDistance(config.max_cor_dis);  // 0.10
+    icp.setTransformationEpsilon(config.trans_eps);        // 1e-10
 
     icp.setPointRepresentation(boost::make_shared<const MyPointRepresentation>(point_representation));
     // Run the same optimization in a loop and visualize the results
@@ -129,8 +129,7 @@ void icpNonlinearWithNormal(vector<PointCloud::Ptr> clouds, vector<Eigen::Matrix
     // final_T = final_T * icp.getFinalTransformation();
     final_T = final_T * Ti * init_T[i];
 
-    std::cout << "Final Transformation: " << std::endl
-              << final_T << std::endl;
+    std::cout << "Final Transformation: " << std::endl << final_T << std::endl;
     std::cout << "***************************" << std::endl;
     pcl::PointCloud<pcl::PointXYZRGB> new_cloud;
 
@@ -157,7 +156,7 @@ void ndtRegistration(vector<PointCloud::Ptr> clouds, vector<Eigen::Matrix4f> ini
     PointCloud::Ptr tgt(new PointCloud);
     pcl::VoxelGrid<PointT> grid;
 
-    grid.setLeafSize(0.05, 0.05, 0.05);
+    grid.setLeafSize(0.05, 0.05, 0.05);  // TODO hardcode in here
     grid.setInputCloud(clouds[i + 1]);
     grid.filter(*src);
 
@@ -168,11 +167,11 @@ void ndtRegistration(vector<PointCloud::Ptr> clouds, vector<Eigen::Matrix4f> ini
     pcl::NormalDistributionsTransform<PointT, PointT> ndt;
     //设置依赖尺度NDT参数
     //为终止条件设置最小转换差异
-    ndt.setTransformationEpsilon(config.c1); // 0.01
+    ndt.setTransformationEpsilon(config.c1);  // 0.01
     //为More-Thuente线搜索设置最大步长
-    ndt.setStepSize(config.c2); // 0.1
+    ndt.setStepSize(config.c2);  // 0.1
     //设置NDT网格结构的分辨率（VoxelGridCovariance）
-    ndt.setResolution(config.c3); // 1.0
+    ndt.setResolution(config.c3);  // 1.0
     //设置匹配迭代的最大次数
     ndt.setMaximumIterations(config.iter_num);
     // 设置要配准的点云
@@ -191,8 +190,7 @@ void ndtRegistration(vector<PointCloud::Ptr> clouds, vector<Eigen::Matrix4f> ini
     // final_T = final_T * icp.getFinalTransformation();
     final_T = final_T * ndt.getFinalTransformation();
 
-    std::cout << "Final Transformation: " << std::endl
-              << final_T << std::endl;
+    std::cout << "Final Transformation: " << std::endl << final_T << std::endl;
     std::cout << "***************************" << std::endl;
     pcl::PointCloud<pcl::PointXYZRGB> new_cloud;
 
