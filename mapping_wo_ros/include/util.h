@@ -7,13 +7,19 @@
 #include <pcl/point_cloud.h>
 
 #include <Eigen/Core>
+#include <Eigen/Geometry>
 #include <Eigen/LU>
+
 #include <opencv/cv.hpp>
 #include <opencv2/core/core.hpp>
 #include <opencv2/highgui/highgui.hpp>
+#include "opencv2/xfeatures2d.hpp"
 
 const float PI = 3.1415926535;
 using namespace Eigen;
+using namespace cv;
+using namespace cv::xfeatures2d;
+using namespace std;
 Vector3f rotationMatrixToEulerAngles(Matrix3f R)
 {
   float sy = sqrt(R(0, 0) * R(0, 0) + R(1, 0) * R(1, 0));
@@ -50,10 +56,28 @@ MatrixXf leastSquareMethod(MatrixXf A, VectorXf b)
   return (A.transpose() * A).inverse() * A.transpose() * b;
 }
 
+struct imageType
+{
+  vector<Mat> imgs, depths, descriptors;
+  vector<vector<KeyPoint>> keypoints;
+  void init()
+  {
+    Ptr<SIFT> detector = SIFT::create(1000);
+    for (Mat &image : imgs)
+    {
+      vector<KeyPoint> keypoint;
+      Mat descriptor;
+      detector->detectAndCompute(image, Mat(), keypoint, descriptor);
+      descriptors.push_back(descriptor);
+      keypoints.push_back(keypoint);
+    }
+  };
+};
+
 // config util
 struct ConfigSetting
 {
-  std::string data_path;
+  string data_path;
   Eigen::Matrix4f extrinsic_matrix;
   Eigen::Matrix3f camera_matrix;
   double k1, k2, k3, p1, p2;
@@ -62,16 +86,16 @@ struct ConfigSetting
   double c1, c2, c3;
   void print()
   {
-    std::cout << "Data root: " << data_path << std::endl;
-    std::cout << "Extrinsic matrix: \n" << extrinsic_matrix << std::endl;
-    std::cout << "Camera matrix: \n" << camera_matrix << std::endl;
-    std::cout << "Distortion coeff: \n" << k1 << " " << k2 << " " << k3 << " " << p1 << " " << p2 << std::endl;
+    cout << "Data root: " << data_path << endl;
+    cout << "Extrinsic matrix: \n" << extrinsic_matrix << endl;
+    cout << "Camera matrix: \n" << camera_matrix << endl;
+    cout << "Distortion coeff: \n" << k1 << " " << k2 << " " << k3 << " " << p1 << " " << p2 << endl;
   }
 } config;
 
 void readConfig()
 {
-  std::ifstream infile("./cfg/config.txt");
+  ifstream infile("./cfg/config.txt");
   infile >> config.data_path;
   config.extrinsic_matrix.setIdentity(4, 4);
   for (int i = 0; i < 3; i++)
@@ -99,18 +123,17 @@ void readConfig()
   config.print();
 }
 
-void readData(std::vector<pcl::PointCloud<pcl::PointXYZRGB>::Ptr> &pcs, std::vector<cv::Mat> &imgs,
-              std::vector<cv::Mat> &depths)
+void readData(vector<pcl::PointCloud<pcl::PointXYZRGB>::Ptr> &pcs, struct imageType &image_data)
 {
   int data_len;
-  std::ifstream infile(config.data_path + "description.txt");
+  ifstream infile(config.data_path + "description.txt");
   infile >> data_len;
   if (!data_len)
-    std::cout << "\n NO data to read!" << std::endl;
+    cout << "\n NO data to read!" << endl;
   else
   {
-    std::cout << "The length of the data is: " << data_len << std::endl;
-    std::cout << "Reading data..." << std::endl;
+    cout << "The length of the data is: " << data_len << endl;
+    cout << "Reading data..." << endl;
   }
 
   infile.close();
@@ -121,12 +144,12 @@ void readData(std::vector<pcl::PointCloud<pcl::PointXYZRGB>::Ptr> &pcs, std::vec
   {
     pcl::PointCloud<pcl::PointXYZRGB>::Ptr tmp(new pcl::PointCloud<pcl::PointXYZRGB>());
 
-    // pcl::io::loadPCDFile<pcl::PointXYZRGB>(config.data_path + std::to_string(i) + ".pcd", *tmp);
+    pcl::io::loadPCDFile<pcl::PointXYZRGB>(config.data_path + to_string(i) + ".pcd", *tmp);
     // statisticalFilter.setInputCloud(tmp);  //设置待滤波的点云
     // statisticalFilter.filter(*tmp);        //执行滤波处理，保存内点到cloud_after_StatisticalRemoval
 
     pcs.push_back(tmp);
-    imgs.push_back(cv::imread(config.data_path + std::to_string(i) + ".jpg"));
-    depths.push_back(cv::imread(config.data_path + std::to_string(i) + ".png", CV_16UC1));
+    image_data.imgs.push_back(cv::imread(config.data_path + to_string(i) + ".jpg"));
+    image_data.depths.push_back(cv::imread(config.data_path + to_string(i) + ".png", CV_16UC1));
   }
 }

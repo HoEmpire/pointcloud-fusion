@@ -142,12 +142,11 @@ void icpNonlinearWithNormal(vector<PointCloud::Ptr> clouds, vector<Eigen::Matrix
   PCL_INFO("Fusion Complete!!");
 }
 
-void ndtRegistration(vector<PointCloud::Ptr> clouds, vector<Eigen::Matrix4f> init_T)
+void ndtRegistration(vector<PointCloud::Ptr> clouds, vector<Eigen::Matrix4f> init_T, vector<Eigen::Matrix4f> &result_T)
 {
   Eigen::Matrix4f final_T;
   final_T.setIdentity(4, 4);
   pcl::PointCloud<pcl::PointXYZRGB> origin = *clouds[0];
-  pcl::PointCloud<pcl::PointXYZRGB> wo_icp = *clouds[0];
   // PCL_INFO("Fusing point clouds");
   for (int i = 0; i < clouds.size() - 1; i++)
   {
@@ -196,9 +195,8 @@ void ndtRegistration(vector<PointCloud::Ptr> clouds, vector<Eigen::Matrix4f> ini
 
     pcl::transformPointCloud(*clouds[i + 1], new_cloud, final_T);
     origin += new_cloud;
-    wo_icp += *clouds[i + 1];
+    result_T.push_back(ndt.getFinalTransformation().inverse());
   }
   pcl::io::savePCDFile("/home/tim/icp.pcd", origin);
-  pcl::io::savePCDFile("/home/tim/wo_icp.pcd", wo_icp);
   PCL_INFO("Fusion Complete!!");
 }

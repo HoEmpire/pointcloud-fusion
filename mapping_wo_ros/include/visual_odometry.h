@@ -4,25 +4,21 @@
 #include <opencv2/core/core.hpp>
 #include <opencv2/features2d/features2d.hpp>
 #include <opencv2/highgui/highgui.hpp>
-#include "opencv2/xfeatures2d.hpp"
+#include "DBoW3/DBoW3.h"
 #include "opencv2/core/eigen.hpp"
+#include "opencv2/xfeatures2d.hpp"
+
 #include "util.h"
 using namespace std;
 using namespace cv;
 using namespace cv::xfeatures2d;
 using namespace Eigen;
 
-void findFeatureMatches(const Mat &img_1, const Mat &img_2, vector<KeyPoint> &keypoints_1,
-                        vector<KeyPoint> &keypoints_2, vector<DMatch> &matches)
+void findFeatureMatches(const Mat &descriptors_1, const Mat &descriptors_2, vector<DMatch> &matches)
 {
   //-- 初始化
-  Mat descriptors_1, descriptors_2;
 
-  Ptr<SIFT> detector = SIFT::create(1000);
   Ptr<DescriptorMatcher> matcher = DescriptorMatcher::create(DescriptorMatcher::FLANNBASED);
-
-  detector->detectAndCompute(img_1, noArray(), keypoints_1, descriptors_1);
-  detector->detectAndCompute(img_2, noArray(), keypoints_2, descriptors_2);
 
   vector<vector<DMatch>> knn_matches;
   matcher->knnMatch(descriptors_1, descriptors_2, knn_matches, 2);
@@ -41,7 +37,8 @@ void findFeatureMatches(const Mat &img_1, const Mat &img_2, vector<KeyPoint> &ke
 
 Point2d pixel2cam(const Point2d &p, const Mat &K)
 {
-  return Point2d((p.x - K.at<float>(0, 2)) / K.at<float>(0, 0), (p.y - K.at<float>(1, 2)) / K.at<float>(1, 1)); //without unit
+  return Point2d((p.x - K.at<float>(0, 2)) / K.at<float>(0, 0),
+                 (p.y - K.at<float>(1, 2)) / K.at<float>(1, 1));  // without unit
 }
 
 void poseEstimation2d2d(vector<KeyPoint> keypoints_1, vector<KeyPoint> keypoints_2, vector<DMatch> matches, Mat &R,
@@ -115,9 +112,10 @@ float computeScaleFromPoint(Vector3f x1, Vector3f x2, float d1, float d2, Matrix
   return leastSquareMethod(A, b)(0, 0);
 }
 
-//TODO May add RANSAC in here
+// TODO May add RANSAC in here
 float recoverScale(vector<KeyPoint> keypoints_1, vector<KeyPoint> keypoints_2, vector<DMatch> inliers_with_depth,
-                   vector<float> depth1, vector<float> depth2, Matrix3f R, Vector3f t, Mat K, const int max_iter = 20, const float threshold = 0.5)
+                   vector<float> depth1, vector<float> depth2, Matrix3f R, Vector3f t, Mat K, const int max_iter = 20,
+                   const float threshold = 0.5)
 {
   vector<float> scale, scale_inliers_best, scale_inliers_tmp;
   for (int i = 0; i < inliers_with_depth.size(); i++)
@@ -149,29 +147,29 @@ float recoverScale(vector<KeyPoint> keypoints_1, vector<KeyPoint> keypoints_2, v
   cout << "Recover Svale::After RANSAC " << scale_inliers_best.size() << " sets of matches left" << endl;
   float average_scale;
   if (scale_inliers_best.size() > 10)
-    average_scale = std::accumulate(scale_inliers_best.begin(), scale_inliers_best.end(), 0.0) / scale_inliers_best.size();
+    average_scale =
+        std::accumulate(scale_inliers_best.begin(), scale_inliers_best.end(), 0.0) / scale_inliers_best.size();
   else
     average_scale = std::accumulate(scale.begin(), scale.end(), 0.0) / scale.size();
   cout << "Recover Svale::Finish recover scale!!!! " << endl;
   cout << "Recover Svale::Average Scale: " << average_scale << endl;
 }
 
-vector<Matrix4f> calVisualOdometry(vector<Mat> imgs, vector<Mat> depths)
+vector<Matrix4f> calVisualOdometry(struct imageType image_data)
 {
   vector<Matrix4f> T_between_frames;
-  if (imgs.size() <= 1)
+  if (image_data.imgs.size() <= 1)
     cout << "WARNING:The numebr of images is less than 1 !" << endl;
-  for (int i = 1; i < imgs.size(); i++)
+  for (int i = 1; i < image_data.imgs.size(); i++)
   {
-    vector<KeyPoint> keypoints_1, keypoints_2;
     vector<DMatch> matches, inliers;
-    findFeatureMatches(imgs[i - 1], imgs[i], keypoints_1, keypoints_2, matches);
+    findFeatureMatches(image_data.descriptors[i - 1], image_data.descriptors[i], matches);
     cout << "*****计算第" << i << "组图片*****" << endl;
     cout << "一共找到了" << matches.size() << "组匹配点" << endl;
 
     //对极几何估计两张图像间运动
     Mat R, t;
-    poseEstimation2d2d(keypoints_1, keypoints_2, matches, R, t, inliers);
+    poseEstimation2d2d(image_data.keypoints[i - 1], image_data.keypoints[i], matches, R, t, inliers);
 
     cout << "finish pose estimation" << endl;
     int count = 0;
@@ -180,11 +178,11 @@ vector<Matrix4f> calVisualOdometry(vector<Mat> imgs, vector<Mat> depths)
     for (vector<DMatch>::iterator m = inliers.begin(); m != inliers.end(); m++)
     {
       KeyPoint kp1, kp2;
-      kp1 = keypoints_1[m->queryIdx];
-      kp2 = keypoints_2[m->trainIdx];
+      kp1 = image_data.keypoints[i - 1][m->queryIdx];
+      kp2 = image_data.keypoints[i][m->trainIdx];
       ushort d1, d2;
-      d1 = depths[i - 1].at<ushort>(kp1.pt.y, kp1.pt.x);
-      d2 = depths[i].at<ushort>(kp2.pt.y, kp2.pt.x);
+      d1 = image_data.depths[i - 1].at<ushort>(kp1.pt.y, kp1.pt.x);
+      d2 = image_data.depths[i].at<ushort>(kp2.pt.y, kp2.pt.x);
       if (d1 != 0 || d2 != 0)
       {
         count++;
@@ -204,7 +202,8 @@ vector<Matrix4f> calVisualOdometry(vector<Mat> imgs, vector<Mat> depths)
     Mat K;
     Matrix3f camera_matrix = config.camera_matrix.topLeftCorner(3, 3);
     eigen2cv(camera_matrix, K);
-    float scale = recoverScale(keypoints_1, keypoints_2, inliers_with_depth, depth1, depth2, R_eigen, t_eigen, K);
+    float scale = recoverScale(image_data.keypoints[i - 1], image_data.keypoints[i], inliers_with_depth, depth1, depth2,
+                               R_eigen, t_eigen, K);
 
     T.setIdentity(4, 4);
     T.topLeftCorner(3, 3) = R_eigen;
@@ -212,13 +211,12 @@ vector<Matrix4f> calVisualOdometry(vector<Mat> imgs, vector<Mat> depths)
     T = config.extrinsic_matrix.inverse() * T.inverse() * config.extrinsic_matrix;
 
     // show in euler angle
-    cout << "T:" << endl
-         << T << endl;
+    cout << "T:" << endl << T << endl;
     Vector3f euler_angle = rotationMatrixToEulerAngles(T.topLeftCorner(3, 3)) * 180 / PI;
     cout << "euler anles = " << euler_angle.transpose() << endl;
     float angles =
         sqrt(euler_angle[0] * euler_angle[0] + euler_angle[0] * euler_angle[0] + euler_angle[0] * euler_angle[0]);
-    if (angles > 30) // TODO hardcode in here
+    if (angles > 30)  // TODO hardcode in here
     {
       cout << "WARNING:Visual odometry degenerate!!" << endl;
       T.setIdentity(4, 4);
@@ -228,4 +226,35 @@ vector<Matrix4f> calVisualOdometry(vector<Mat> imgs, vector<Mat> depths)
     T_between_frames.push_back(T);
   }
   return T_between_frames;
+}
+
+void loop_closure(struct imageType image_data, vector<vector<int>> &loops)
+{
+  // read the images and database
+  cout << "LOOP CLOSURE::reading database" << endl;
+  DBoW3::Vocabulary vocab("./vocab_sift.yml.gz");
+  if (vocab.empty())
+  {
+    cerr << "LOOP CLOSURE::Vocabulary does not exist." << endl;
+    return;
+  }
+  cout << "LOOP CLOSURE::comparing images with database " << endl;
+  DBoW3::Database db(vocab, false, 0);
+  for (int i = 0; i < image_data.descriptors.size(); i++)
+    db.add(image_data.descriptors[i]);
+  for (int i = 0; i < image_data.descriptors.size(); i++)
+  {
+    DBoW3::QueryResults ret;
+    db.query(image_data.descriptors[i], ret, 4);  // max result=4
+    const float ratio_test = 0.7;
+    const int frame_distance_threshold = 2;
+    if (ret[1].Score * ratio_test > ret[2].Score && i - int(ret[1].Id) > frame_distance_threshold)
+    {
+      cout << "LOOP CLOSURE::Found loop! image " << i << " and " << ret[1].Id << " is a loop!" << endl;
+      vector<int> tmp;
+      tmp.push_back(i);
+      tmp.push_back(int(ret[1].Id));
+      loops.push_back(tmp);
+    }
+  }
 }
