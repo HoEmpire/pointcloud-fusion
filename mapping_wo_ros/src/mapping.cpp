@@ -24,7 +24,7 @@ int main(int argv, char **argc)
 
   Matrix4f tmp_pos;
   tmp_pos.setIdentity(4, 4);
-  outfile << "VERTEX: 0 0 0 0 0 0 0 1" << endl;
+  outfile << "VERTEX: 0.0 0.0 0.0 0.0 0.0 0.0 0.0 1.0" << endl;
   for (int i = 0; i < T_result.size(); i++)
   {
     tmp_pos = T_result[i] * tmp_pos;

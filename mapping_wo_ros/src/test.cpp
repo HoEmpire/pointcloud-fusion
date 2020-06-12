@@ -21,34 +21,24 @@ using namespace std;
  * 本节演示了如何根据data/目录下的十张图训练字典
  * ************************************************/
 
-// int main(int argc, char** argv)
-// {
-//   vector<pcl::PointCloud<pcl::PointXYZRGB>::Ptr> pcs;
-//   vector<Mat> images, depths;
-//   readConfig();
-//   readData(pcs, images, depths);
+int main(int argc, char** argv)
+{
+  vector<pcl::PointCloud<pcl::PointXYZRGB>::Ptr> pcs;
+  struct imageType image_data;
+  readConfig();
+  readData(pcs, image_data);
+  image_data.init();
 
-//   cout << "detecting features ... " << endl;
-//   Ptr<SIFT> detector = SIFT::create(1000);
-//   vector<Mat> descriptors;
-//   for (Mat& image : images)
-//   {
-//     vector<KeyPoint> keypoints;
-//     Mat descriptor;
-//     detector->detectAndCompute(image, Mat(), keypoints, descriptor);
-//     descriptors.push_back(descriptor);
-//   }
+  // create vocabulary
+  cout << "creating vocabulary ... " << endl;
+  DBoW3::Vocabulary vocab;
+  vocab.create(image_data.descriptors);
+  cout << "vocabulary info: " << vocab << endl;
+  vocab.save("vocab_sift.yml.gz");
+  cout << "done" << endl;
 
-//   // create vocabulary
-//   cout << "creating vocabulary ... " << endl;
-//   DBoW3::Vocabulary vocab;
-//   vocab.create(descriptors);
-//   cout << "vocabulary info: " << vocab << endl;
-//   vocab.save("vocab_sift.yml.gz");
-//   cout << "done" << endl;
-
-//   return 0;
-// }
+  return 0;
+}
 
 // int main(int argc, char** argv)
 // {
@@ -108,57 +98,58 @@ using namespace std;
 //   for (int i = 0; i < descriptors.size(); i++)
 //   {
 //     DBoW3::QueryResults ret;
-//     db.query(descriptors[i], ret, 4);  // max result=4
+//     db.query(descriptors[i], ret, 10);  // max result=4
 //     cout << "searching for image " << i << " returns " << ret << endl;
-//     const float ratio_test = 0.7;
+//     const float ratio_test = 0.8;
 //     const int frame_distance_threshold = 2;
 //     if ((ret[1].Score * ratio_test > ret[2].Score) && (i - int(ret[1].Id) > frame_distance_threshold))
 //     {
 //       cout << "Found loop!" << endl;
-//       cout << "vetex 1 :" << i << ", vetex 2:" << ret[1].Id << i - ret[1].Id << endl;
+//       cout << "vetex 1 :" << i << ", vetex 2:" << int(ret[1].Id) << endl;
 //     }
 //     cout << endl;
 //   }
 //   cout << "done." << endl;
 // }
 
-int main(int argv, char **argc)
-{
-  vector<pcl::PointCloud<pcl::PointXYZRGB>::Ptr> pcs;
-  struct imageType image_data;
-  readConfig();
-  readData(pcs, image_data);
-  image_data.init();
+// int main(int argv, char **argc)
+// {
+//   vector<pcl::PointCloud<pcl::PointXYZRGB>::Ptr> pcs;
+//   struct imageType image_data;
+//   readConfig();
+//   readData(pcs, image_data);
+//   image_data.init();
 
-  vector<vector<int>> loops;
-  loop_closure(image_data, loops);
-  ofstream outfile("./result.txt");
+//   vector<vector<int>> loops;
+//   loop_closure(image_data, loops);
+//   ofstream outfile("./result.txt");
 
-  for (int i = 0; i < loops.size(); i++)
-  {
-    vector<Mat> imgs, depths;
-    vector<pcl::PointCloud<pcl::PointXYZRGB>::Ptr> pcs_two;
+//   for (int i = 0; i < loops.size(); i++)
+//   {
+//     vector<Mat> imgs, depths;
+//     vector<pcl::PointCloud<pcl::PointXYZRGB>::Ptr> pcs_two;
 
-    pcs_two.push_back(pcs[loops[i][0]]);
-    pcs_two.push_back(pcs[loops[i][1]]);
+//     pcs_two.push_back(pcs[loops[i][0]]);
+//     pcs_two.push_back(pcs[loops[i][1]]);
 
-    imgs.push_back(image_data.imgs[loops[i][0]]);
-    imgs.push_back(image_data.imgs[loops[i][1]]);
-    depths.push_back(image_data.depths[loops[i][0]]);
-    depths.push_back(image_data.depths[loops[i][1]]);
+//     imgs.push_back(image_data.imgs[loops[i][0]]);
+//     imgs.push_back(image_data.imgs[loops[i][1]]);
+//     depths.push_back(image_data.depths[loops[i][0]]);
+//     depths.push_back(image_data.depths[loops[i][1]]);
 
-    struct imageType image_data_two;
-    image_data_two.imgs = imgs;
-    image_data_two.depths = depths;
-    image_data_two.init();
-    vector<Matrix4f> T_init_two = calVisualOdometry(image_data_two);
-    vector<Matrix4f> T_result_two;
-    ndtRegistration(pcs_two, T_init_two, T_result_two);
+//     struct imageType image_data_two;
+//     image_data_two.imgs = imgs;
+//     image_data_two.depths = depths;
+//     image_data_two.init();
+//     vector<Matrix4f> T_init_two = calVisualOdometry(image_data_two);
+//     vector<Matrix4f> T_result_two;
+//     ndtRegistration(pcs_two, T_init_two, T_result_two);
 
-    Matrix3d rotation_matrix = T_result_two[0].topLeftCorner(3, 3).cast<double>();
-    Quaterniond q(rotation_matrix);
-    outfile << "EDGE: " << loops[i][0] << " " << loops[i][1] << " " << T_result_two[0].topRightCorner(3, 1).transpose()
-            << " " << q.x() << " " << q.y() << " " << q.z() << " " << q.w() << endl;
-    ;
-  }
-}
+//     Matrix3d rotation_matrix = T_result_two[0].topLeftCorner(3, 3).cast<double>();
+//     Quaterniond q(rotation_matrix);
+//     outfile << "EDGE: " << loops[i][0] << " " << loops[i][1] << " " << T_result_two[0].topRightCorner(3,
+//     1).transpose()
+//             << " " << q.x() << " " << q.y() << " " << q.z() << " " << q.w() << endl;
+//     ;
+//   }
+// }

@@ -1,6 +1,7 @@
 #pragma once
 #include <pcl/features/normal_3d.h>
 #include <pcl/filters/filter.h>
+#include <pcl/filters/statistical_outlier_removal.h>  //统计滤波器头文件
 #include <pcl/filters/voxel_grid.h>
 #include <pcl/io/pcd_io.h>
 #include <pcl/point_cloud.h>
@@ -144,23 +145,41 @@ void icpNonlinearWithNormal(vector<PointCloud::Ptr> clouds, vector<Eigen::Matrix
 
 void ndtRegistration(vector<PointCloud::Ptr> clouds, vector<Eigen::Matrix4f> init_T, vector<Eigen::Matrix4f> &result_T)
 {
+  // point cloud preprocess
+  pcl::StatisticalOutlierRemoval<pcl::PointXYZRGB> statisticalFilter;  //创建滤波器对象
+  statisticalFilter.setMeanK(50);                                      //取平均值的临近点数
+  statisticalFilter.setStddevMulThresh(1);  //超过平均距离一个标准差以上，该点记为离群点，将其移除
+
+  for (PointCloud::Ptr &pc : clouds)
+  {
+    statisticalFilter.setInputCloud(pc);  //设置待滤波的点云
+    statisticalFilter.filter(*pc);        //执行滤波处理，保存内点到cloud_after_StatisticalRemoval
+  }
+
+  vector<PointCloud::Ptr> clouds_resample;
+  for (PointCloud::Ptr &pc : clouds)
+  {
+    pcl::VoxelGrid<PointT> grid;
+
+    grid.setLeafSize(0.05, 0.05, 0.05);  // TODO hardcode in here
+    grid.setInputCloud(pc);
+    PointCloud::Ptr cloud_resample(new PointCloud);
+    grid.filter(*cloud_resample);
+    clouds_resample.push_back(cloud_resample);
+  }
+
   Eigen::Matrix4f final_T;
   final_T.setIdentity(4, 4);
   pcl::PointCloud<pcl::PointXYZRGB> origin = *clouds[0];
   // PCL_INFO("Fusing point clouds");
+
   for (int i = 0; i < clouds.size() - 1; i++)
   {
     std::cout << "*****fusing point cloud set " << i << " *****" << std::endl;
     PointCloud::Ptr src(new PointCloud);
     PointCloud::Ptr tgt(new PointCloud);
-    pcl::VoxelGrid<PointT> grid;
-
-    grid.setLeafSize(0.05, 0.05, 0.05);  // TODO hardcode in here
-    grid.setInputCloud(clouds[i + 1]);
-    grid.filter(*src);
-
-    grid.setInputCloud(clouds[i]);
-    grid.filter(*tgt);
+    src = clouds_resample[i + 1];
+    tgt = clouds_resample[i];
 
     //初始化正态分布变换（NDT）
     pcl::NormalDistributionsTransform<PointT, PointT> ndt;
@@ -197,6 +216,9 @@ void ndtRegistration(vector<PointCloud::Ptr> clouds, vector<Eigen::Matrix4f> ini
     origin += new_cloud;
     result_T.push_back(ndt.getFinalTransformation().inverse());
   }
-  pcl::io::savePCDFile("/home/tim/icp.pcd", origin);
+  if (clouds.size() > 2)
+    pcl::io::savePCDFile("/home/tim/ndt.pcd", origin);
+  else
+    pcl::io::savePCDFile("/home/tim/ndt_two_frame.pcd", origin);
   PCL_INFO("Fusion Complete!!");
 }

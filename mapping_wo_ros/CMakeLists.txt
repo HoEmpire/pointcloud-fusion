@@ -15,7 +15,11 @@ include_directories(${PCL_INCLUDE_DIRS})
 link_directories(${PCL_LIBRARY_DIRS}) 
 add_definitions(${PCL_DEFINITIONS}) 
 
-find_package(teaserpp REQUIRED)
+# find_package(teaserpp REQUIRED)
+# g2o 
+list(APPEND CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake_modules)
+find_package(G2O REQUIRED)
+include_directories(${G2O_INCLUDE_DIRS})
 
 include_directories(
   include
@@ -32,8 +36,11 @@ set( DBoW3_LIBS "/usr/local/lib/libDBoW3.so" )
 add_executable(mapping src/mapping.cpp) 
 target_link_libraries(mapping ${PCL_LIBRARIES} ${Eigen3_INCLUDE_DIRS} ${OpenCV_LIBS} ${DBoW3_LIBS})  
 
-# add_executable(test src/test.cpp) 
-# target_link_libraries(test ${PCL_LIBRARIES} ${Eigen3_INCLUDE_DIRS} ${OpenCV_LIBS} ${DBoW3_LIBS})  
+add_executable(test src/test.cpp) 
+target_link_libraries(test ${PCL_LIBRARIES} ${Eigen3_INCLUDE_DIRS} ${OpenCV_LIBS} ${DBoW3_LIBS})  
+
+add_executable(optimizer src/optimizer.cpp) 
+target_link_libraries(optimizer g2o_core g2o_stuff g2o_types_slam3d ${CHOLMOD_LIBRARIES} ${PCL_LIBRARIES} ${Eigen3_INCLUDE_DIRS} ${OpenCV_LIBS})  
 
 # add_executable(teaser_cpp_ply src/test.cpp)
 # target_link_libraries(teaser_cpp_ply teaserpp::teaser_registration teaserpp::teaser_io ${Eigen3_INCLUDE_DIRS} ${OpenCV_LIBS} ${PCL_LIBRARIES})

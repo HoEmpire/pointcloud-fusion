@@ -112,7 +112,6 @@ float computeScaleFromPoint(Vector3f x1, Vector3f x2, float d1, float d2, Matrix
   return leastSquareMethod(A, b)(0, 0);
 }
 
-// TODO May add RANSAC in here
 float recoverScale(vector<KeyPoint> keypoints_1, vector<KeyPoint> keypoints_2, vector<DMatch> inliers_with_depth,
                    vector<float> depth1, vector<float> depth2, Matrix3f R, Vector3f t, Mat K, const int max_iter = 20,
                    const float threshold = 0.5)
@@ -146,11 +145,11 @@ float recoverScale(vector<KeyPoint> keypoints_1, vector<KeyPoint> keypoints_2, v
 
   cout << "Recover Svale::After RANSAC " << scale_inliers_best.size() << " sets of matches left" << endl;
   float average_scale;
-  if (scale_inliers_best.size() > 10)
+  if (scale_inliers_best.size() >= 10 || 1.0 * scale_inliers_best.size() / scale.size() > 0.4)
     average_scale =
         std::accumulate(scale_inliers_best.begin(), scale_inliers_best.end(), 0.0) / scale_inliers_best.size();
   else
-    average_scale = std::accumulate(scale.begin(), scale.end(), 0.0) / scale.size();
+    average_scale = 0.0;
   cout << "Recover Svale::Finish recover scale!!!! " << endl;
   cout << "Recover Svale::Average Scale: " << average_scale << endl;
 }
@@ -245,8 +244,8 @@ void loop_closure(struct imageType image_data, vector<vector<int>> &loops)
   for (int i = 0; i < image_data.descriptors.size(); i++)
   {
     DBoW3::QueryResults ret;
-    db.query(image_data.descriptors[i], ret, 4);  // max result=4
-    const float ratio_test = 0.7;
+    db.query(image_data.descriptors[i], ret, 3);  // max result=4
+    const float ratio_test = 0.8;
     const int frame_distance_threshold = 2;
     if (ret[1].Score * ratio_test > ret[2].Score && i - int(ret[1].Id) > frame_distance_threshold)
     {
