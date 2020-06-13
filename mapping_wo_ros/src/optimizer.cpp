@@ -14,6 +14,7 @@ using namespace std;
 int main(int argv, char **argc)
 {
   ifstream fin("./result.txt");
+  vector<g2o::EdgeSE3 *> edges;
 
   // 设定g2o
   typedef g2o::BlockSolver<g2o::BlockSolverTraits<6, 6>> BlockSolverType;
@@ -65,11 +66,16 @@ int main(int argv, char **argc)
       Quaterniond q(data[6], data[3], data[4], data[5]);
       q.normalize();
       e->setMeasurement(g2o::SE3Quat(q, Vector3d(data[0], data[1], data[2])));
+      Eigen::MatrixXd information_matrix(6, 6);
+      information_matrix.setIdentity(6, 6);
+      information_matrix = information_matrix * 10000;
+      information_matrix.topLeftCorner(3, 3) = information_matrix.topLeftCorner(3, 3) * 4;
       if (idx1 < idx2)
-        e->setInformation(Eigen::MatrixXd::Identity(6, 6));
+        e->setInformation(information_matrix);
       else
-        e->setInformation(Eigen::MatrixXd::Identity(6, 6));
+        e->setInformation(information_matrix);
       // e->setRobustKernel(new g2o::RobustKernelHuber());
+      edges.push_back(e);
       optimizer.addEdge(e);
     }
     if (!fin.good())
@@ -77,6 +83,51 @@ int main(int argv, char **argc)
   }
 
   cout << "read total " << vertexCnt << " vertices, " << edgeCnt << " edges." << endl;
+
+  cout << "optimizing ..." << endl;
+  optimizer.initializeOptimization();
+  optimizer.optimize(30);
+
+  const int num_iteration = 10;
+
+  for (int iter = 0; iter < num_iteration; iter++)
+  {
+    // adjust weight of bad edges
+    vector<double> errors;
+    vector<int> edge_inliers_id_tmp;
+    vector<int> edge_inliers_id_best;
+    for (int i = 0; i < edges.size(); i++)
+    {
+      cout << edges[i]->id() << " " << edges[i]->chi2() << endl;
+      errors.push_back(edges[i]->chi2());
+    }
+
+    for (int iter_ransac = 0; iter_ransac < num_iteration; iter_ransac++)
+    {
+      int rand_index = rand() % edges.size();
+      vector<int>().swap(edge_inliers_id_tmp);
+      for (int i = 0; i < edges.size(); i++)
+      {
+        if (abs(errors[i] - errors[rand_index]) / (abs(errors[i]) + 1e-9) < 0.5)
+          edge_inliers_id_tmp.push_back(i);
+      }
+      if (iter_ransac == 0 || edge_inliers_id_best.size() < edge_inliers_id_tmp.size())
+        edge_inliers_id_best.assign(edge_inliers_id_tmp.begin(), edge_inliers_id_tmp.end());
+    }
+    optimizer.clear();
+
+    for (int i = 0; i < edge_inliers_id_best.size(); i++)
+    {
+      edges[edge_inliers_id_best[i]]->setInformation(edges[edge_inliers_id_best[i]]->information() / 5.0);
+    }
+
+    cout << "optimizing ..." << endl;
+    optimizer.initializeOptimization();
+    optimizer.optimize(30);
+  }
+
+  cout << "saving optimization results ..." << endl;
+  optimizer.save("result.g2o");
 
   readConfig();
   vector<pcl::PointCloud<pcl::PointXYZRGB>::Ptr> pcs;
@@ -91,13 +142,6 @@ int main(int argv, char **argc)
     cout << "Reading data..." << endl;
   }
   infile.close();
-
-  cout << "optimizing ..." << endl;
-  optimizer.initializeOptimization();
-  optimizer.optimize(30);
-
-  cout << "saving optimization results ..." << endl;
-  optimizer.save("result.g2o");
 
   for (int i = 0; i < data_len; i++)
   {

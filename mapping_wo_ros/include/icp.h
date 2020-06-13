@@ -42,26 +42,44 @@ public:
   }
 };
 
-void icpNonlinearWithNormal(vector<PointCloud::Ptr> clouds, vector<Eigen::Matrix4f> init_T)
+void icpNonlinearWithNormal(vector<PointCloud::Ptr> clouds, vector<Eigen::Matrix4f> init_T,
+                            vector<Eigen::Matrix4f> &result_T)
 {
+  // point cloud preprocess
+  pcl::StatisticalOutlierRemoval<pcl::PointXYZRGB> statisticalFilter;  //创建滤波器对象
+  statisticalFilter.setMeanK(50);                                      //取平均值的临近点数
+  statisticalFilter.setStddevMulThresh(1);  //超过平均距离一个标准差以上，该点记为离群点，将其移除
+
+  for (PointCloud::Ptr &pc : clouds)
+  {
+    statisticalFilter.setInputCloud(pc);  //设置待滤波的点云
+    statisticalFilter.filter(*pc);        //执行滤波处理，保存内点到cloud_after_StatisticalRemoval
+  }
+
+  vector<PointCloud::Ptr> clouds_resample;
+  for (PointCloud::Ptr &pc : clouds)
+  {
+    pcl::VoxelGrid<PointT> grid;
+
+    grid.setLeafSize(0.05, 0.05, 0.05);  // TODO hardcode in here
+    grid.setInputCloud(pc);
+    PointCloud::Ptr cloud_resample(new PointCloud);
+    grid.filter(*cloud_resample);
+    clouds_resample.push_back(cloud_resample);
+  }
+
   Eigen::Matrix4f final_T;
   final_T.setIdentity(4, 4);
   pcl::PointCloud<pcl::PointXYZRGB> origin = *clouds[0];
-  pcl::PointCloud<pcl::PointXYZRGB> wo_icp = *clouds[0];
   // PCL_INFO("Fusing point clouds");
+
   for (int i = 0; i < clouds.size() - 1; i++)
   {
     std::cout << "*****fusing point cloud set " << i << " *****" << std::endl;
     PointCloud::Ptr src(new PointCloud);
     PointCloud::Ptr tgt(new PointCloud);
-    pcl::VoxelGrid<PointT> grid;
-
-    grid.setLeafSize(0.01, 0.01, 0.01);
-    grid.setInputCloud(clouds[i + 1]);
-    grid.filter(*src);
-
-    grid.setInputCloud(clouds[i]);
-    grid.filter(*tgt);
+    src = clouds_resample[i + 1];
+    tgt = clouds_resample[i];
 
     // Compute surface normals and curvature
     PointCloudWithNormals::Ptr points_with_normals_src(new PointCloudWithNormals);
@@ -136,10 +154,12 @@ void icpNonlinearWithNormal(vector<PointCloud::Ptr> clouds, vector<Eigen::Matrix
 
     pcl::transformPointCloud(*clouds[i + 1], new_cloud, final_T);
     origin += new_cloud;
-    wo_icp += *clouds[i + 1];
+    result_T.push_back((Ti * init_T[i]).inverse());
   }
-  pcl::io::savePCDFile("/home/tim/icp.pcd", origin);
-  pcl::io::savePCDFile("/home/tim/wo_icp.pcd", wo_icp);
+  if (clouds.size() > 2)
+    pcl::io::savePCDFile("/home/tim/icp.pcd", origin);
+  else
+    pcl::io::savePCDFile("/home/tim/icp_two_frame.pcd", origin);
   PCL_INFO("Fusion Complete!!");
 }
 

@@ -244,16 +244,20 @@ void loop_closure(struct imageType image_data, vector<vector<int>> &loops)
   for (int i = 0; i < image_data.descriptors.size(); i++)
   {
     DBoW3::QueryResults ret;
-    db.query(image_data.descriptors[i], ret, 3);  // max result=4
+    const int num_of_result = 5;
     const float ratio_test = 0.8;
     const int frame_distance_threshold = 2;
-    if (ret[1].Score * ratio_test > ret[2].Score && i - int(ret[1].Id) > frame_distance_threshold)
-    {
-      cout << "LOOP CLOSURE::Found loop! image " << i << " and " << ret[1].Id << " is a loop!" << endl;
-      vector<int> tmp;
-      tmp.push_back(i);
-      tmp.push_back(int(ret[1].Id));
-      loops.push_back(tmp);
-    }
+    const float threshold = 0.2;
+
+    db.query(image_data.descriptors[i], ret, num_of_result);  // max result=4
+    for (int j = 0; j < 5; j++)
+      if (ret[j].Score > threshold && i - int(ret[j].Id) >= frame_distance_threshold)
+      {
+        cout << "LOOP CLOSURE::Found loop! image " << i << " and " << ret[j].Id << " is a loop!" << endl;
+        vector<int> tmp;
+        tmp.push_back(i);
+        tmp.push_back(int(ret[j].Id));
+        loops.push_back(tmp);
+      }
   }
 }
