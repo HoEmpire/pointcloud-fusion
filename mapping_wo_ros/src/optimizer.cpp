@@ -13,7 +13,6 @@ using namespace std;
 
 int main(int argv, char **argc)
 {
-  ifstream fin("./result.txt");
   vector<g2o::EdgeSE3 *> edges;
 
   // 设定g2o
@@ -26,6 +25,8 @@ int main(int argv, char **argc)
   optimizer.setVerbose(true);      // 打开调试输出
 
   int vertexCnt = 0, edgeCnt = 0;  // 顶点和边的数量
+
+  ifstream fin("./result.txt");
   while (!fin.eof())
   {
     string name;
@@ -114,12 +115,8 @@ int main(int argv, char **argc)
       if (iter_ransac == 0 || edge_inliers_id_best.size() < edge_inliers_id_tmp.size())
         edge_inliers_id_best.assign(edge_inliers_id_tmp.begin(), edge_inliers_id_tmp.end());
     }
-    optimizer.clear();
 
-    for (int i = 0; i < edge_inliers_id_best.size(); i++)
-    {
-      edges[edge_inliers_id_best[i]]->setInformation(edges[edge_inliers_id_best[i]]->information() / 5.0);
-    }
+    optimizer.clear();
 
     cout << "optimizing ..." << endl;
     optimizer.initializeOptimization();

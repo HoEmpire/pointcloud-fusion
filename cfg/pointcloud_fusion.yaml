@@ -1,4 +1,4 @@
 ﻿pointcloud_fusion:
   lidar_topic: /livox/lidar
   camera_topic: /camera_array/cam0/image_raw
-  save_path: /home/tim/dataset/test5
+  save_path: /home/tim/dataset/outdoor-1
