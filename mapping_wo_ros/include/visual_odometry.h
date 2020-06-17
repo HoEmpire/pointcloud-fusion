@@ -172,6 +172,7 @@ vector<Matrix4f> calVisualOdometry(struct imageType image_data)
 
     cout << "finish pose estimation" << endl;
     int count = 0;
+    int count_PnP = 0;
     vector<DMatch> inliers_with_depth;
     vector<float> depth1, depth2;
     for (vector<DMatch>::iterator m = inliers.begin(); m != inliers.end(); m++)
@@ -189,8 +190,14 @@ vector<Matrix4f> calVisualOdometry(struct imageType image_data)
         depth1.push_back(float(d1 / 10000.0));
         depth2.push_back(float(d2 / 10000.0));
       }
+
+      if (d1 != 0)
+      {
+        count_PnP++;
+      }
     }
     cout << "能够恢复绝对尺度的点数: " << count << endl;
+    cout << "能够用PnP绝对尺度的点数: " << count_PnP << endl;
 
     Matrix3f R_eigen;
     Vector3f t_eigen;

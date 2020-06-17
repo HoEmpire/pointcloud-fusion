@@ -1,7 +1,11 @@
 #pragma once
+#include <chrono>
 #include <iostream>
 #include <vector>
 
+#include <pcl/filters/filter.h>
+#include <pcl/filters/statistical_outlier_removal.h>  //统计滤波器头文件
+#include <pcl/filters/voxel_grid.h>
 #include <pcl/io/pcd_io.h>
 #include <pcl/point_cloud.h>
 
@@ -19,6 +23,8 @@ using namespace Eigen;
 using namespace cv;
 using namespace cv::xfeatures2d;
 using namespace std;
+using namespace std::chrono;
+
 Vector3f rotationMatrixToEulerAngles(Matrix3f R)
 {
   float sy = sqrt(R(0, 0) * R(0, 0) + R(1, 0) * R(1, 0));
@@ -61,6 +67,7 @@ struct imageType
   vector<vector<KeyPoint>> keypoints;
   void init()
   {
+    cout << "Extracting features in images!" << endl;
     Ptr<SIFT> detector = SIFT::create(1000);
     for (Mat &image : imgs)
     {
@@ -70,7 +77,60 @@ struct imageType
       descriptors.push_back(descriptor);
       keypoints.push_back(keypoint);
     }
+    cout << "Features extraction finished!" << endl;
   };
+};
+
+struct pointcloudType
+{
+  vector<pcl::PointCloud<pcl::PointXYZRGB>::Ptr> pc_origin, pc_resample, pc_filtered;
+
+  pointcloudType(vector<pcl::PointCloud<pcl::PointXYZRGB>::Ptr> pc_origin,
+                 vector<pcl::PointCloud<pcl::PointXYZRGB>::Ptr> pc_resample,
+                 vector<pcl::PointCloud<pcl::PointXYZRGB>::Ptr> pc_filtered)
+  {
+    this->pc_origin = pc_origin;
+    this->pc_resample = pc_resample;
+    this->pc_filtered = pc_filtered;
+  }
+
+  pointcloudType(vector<pcl::PointCloud<pcl::PointXYZRGB>::Ptr> pc_origin)
+  {
+    this->pc_origin = pc_origin;
+  }
+
+  void filter()
+  {
+    // point cloud preprocess
+    cout << "Start filtering the point cloud!" << endl;
+    pcl::StatisticalOutlierRemoval<pcl::PointXYZRGB> statisticalFilter;
+    statisticalFilter.setMeanK(50);  // TODO hardcode in here
+    statisticalFilter.setStddevMulThresh(1);
+
+    for (pcl::PointCloud<pcl::PointXYZRGB>::Ptr &pc : pc_origin)
+    {
+      pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_filtered(new pcl::PointCloud<pcl::PointXYZRGB>);
+      statisticalFilter.setInputCloud(pc);
+      statisticalFilter.filter(*cloud_filtered);
+      pc_filtered.push_back(cloud_filtered);
+    }
+    cout << "Filtering finished!" << endl;
+  }
+
+  void resample(double resolution)
+  {
+    cout << "Start resampling the point cloud!" << endl;
+    pcl::VoxelGrid<pcl::PointXYZRGB> grid;
+    grid.setLeafSize(resolution, resolution, resolution);
+    for (pcl::PointCloud<pcl::PointXYZRGB>::Ptr &pc : pc_filtered)
+    {
+      grid.setInputCloud(pc);
+      pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_resample(new pcl::PointCloud<pcl::PointXYZRGB>);
+      grid.filter(*cloud_resample);
+      pc_resample.push_back(cloud_resample);
+    }
+    cout << "Resampling finished!" << endl;
+  }
 };
 
 // config util
@@ -83,6 +143,7 @@ struct ConfigSetting
   double max_cor_dis, trans_eps;
   int iter_num;
   double c1, c2, c3;
+  double point_cloud_resolution;
   void print()
   {
     cout << "Data root: " << data_path << endl;
@@ -91,6 +152,21 @@ struct ConfigSetting
     cout << "Distortion coeff: \n" << k1 << " " << k2 << " " << k3 << " " << p1 << " " << p2 << endl;
   }
 } config;
+
+struct timer
+{
+  steady_clock::time_point t_start, t_end;
+  void tic()
+  {
+    t_start = steady_clock::now();
+  }
+
+  double toc()
+  {
+    t_end = steady_clock::now();
+    return duration_cast<duration<double>>(t_end - t_start).count();
+  }
+};
 
 void readConfig()
 {
@@ -117,6 +193,7 @@ void readConfig()
   infile >> config.c1;
   infile >> config.c2;
   infile >> config.c3;
+  infile >> config.point_cloud_resolution;
 
   infile.close();
   config.print();
