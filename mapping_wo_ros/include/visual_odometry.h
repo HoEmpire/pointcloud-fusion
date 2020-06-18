@@ -145,7 +145,7 @@ float recoverScale(vector<KeyPoint> keypoints_1, vector<KeyPoint> keypoints_2, v
 
   cout << "Recover Svale::After RANSAC " << scale_inliers_best.size() << " sets of matches left" << endl;
   float average_scale;
-  if (scale_inliers_best.size() >= 10 || 1.0 * scale_inliers_best.size() / scale.size() > 0.4)
+  if (scale_inliers_best.size() >= 10 || 1.0 * scale_inliers_best.size() / (scale.size() + 0.1) > 0.4)
     average_scale =
         std::accumulate(scale_inliers_best.begin(), scale_inliers_best.end(), 0.0) / scale_inliers_best.size();
   else
@@ -208,8 +208,13 @@ vector<Matrix4f> calVisualOdometry(struct imageType image_data)
     Mat K;
     Matrix3f camera_matrix = config.camera_matrix.topLeftCorner(3, 3);
     eigen2cv(camera_matrix, K);
-    float scale = recoverScale(image_data.keypoints[i - 1], image_data.keypoints[i], inliers_with_depth, depth1, depth2,
-                               R_eigen, t_eigen, K);
+    float scale;
+
+    if (count != 0)
+      scale = recoverScale(image_data.keypoints[i - 1], image_data.keypoints[i], inliers_with_depth, depth1, depth2,
+                           R_eigen, t_eigen, K);
+    else
+      scale = 0;
 
     T.setIdentity(4, 4);
     T.topLeftCorner(3, 3) = R_eigen;
@@ -257,7 +262,7 @@ void loop_closure(struct imageType image_data, vector<vector<int>> &loops)
     const float threshold = 0.2;
 
     db.query(image_data.descriptors[i], ret, num_of_result);  // max result=4
-    for (int j = 0; j < 5; j++)
+    for (int j = 0; j < num_of_result; j++)
       if (ret[j].Score > threshold && i - int(ret[j].Id) >= frame_distance_threshold)
       {
         cout << "LOOP CLOSURE::Found loop! image " << i << " and " << ret[j].Id << " is a loop!" << endl;
