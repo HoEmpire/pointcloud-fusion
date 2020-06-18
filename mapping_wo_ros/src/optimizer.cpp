@@ -159,7 +159,7 @@ int main(int argv, char **argc)
   {
     Eigen::Matrix4d final_T;
     g2o::VertexSE3 *v = dynamic_cast<g2o::VertexSE3 *>(optimizer.vertex(i));
-    final_T = v->estimate().matrix().inverse();
+    final_T = v->estimate().matrix();
     cout << "Pose=" << endl << final_T << endl;
     pcl::PointCloud<pcl::PointXYZRGB> tmp;
     pcl::transformPointCloud(*pcs[i], tmp, final_T);

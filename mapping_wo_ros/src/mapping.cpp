@@ -45,7 +45,7 @@ int main(int argv, char **argc)
   outfile << "VERTEX: 0 0.0 0.0 0.0 0.0 0.0 0.0 1.0" << endl;
   for (int i = 0; i < T_result.size(); i++)
   {
-    tmp_pos = T_result[i] * tmp_pos;
+    tmp_pos = tmp_pos * T_result[i];
     Matrix3d rotation_matrix = tmp_pos.topLeftCorner(3, 3).cast<double>();
     Quaterniond q(rotation_matrix);
     outfile << "VERTEX: " << i + 1 << " " << tmp_pos.topRightCorner(3, 1).transpose() << " " << q.x() << " " << q.y()

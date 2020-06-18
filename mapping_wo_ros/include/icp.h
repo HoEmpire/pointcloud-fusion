@@ -212,7 +212,7 @@ void ndtRegistration(struct pointcloudType point_cloud_data, vector<Eigen::Matri
 
     pcl::transformPointCloud(*point_cloud_data.pc_filtered[i + 1], new_cloud, final_T);
     origin += new_cloud;
-    result_T.push_back(ndt.getFinalTransformation().inverse());
+    result_T.push_back(ndt.getFinalTransformation());
   }
   if (point_cloud_data.pc_filtered.size() > 2)
     pcl::io::savePCDFile("/home/tim/ndt.pcd", origin);

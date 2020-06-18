@@ -251,9 +251,9 @@ void loop_closure(struct imageType image_data, vector<vector<int>> &loops)
   for (int i = 0; i < image_data.descriptors.size(); i++)
   {
     DBoW3::QueryResults ret;
-    const int num_of_result = 5;
+    const int num_of_result = 3;
     const float ratio_test = 0.8;
-    const int frame_distance_threshold = 2;
+    const int frame_distance_threshold = 5;
     const float threshold = 0.2;
 
     db.query(image_data.descriptors[i], ret, num_of_result);  // max result=4
