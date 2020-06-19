@@ -35,9 +35,9 @@ void findFeatureMatches(const Mat &descriptors_1, const Mat &descriptors_2, vect
   }
 }
 
-Point2d pixel2cam(const Point2d &p, const Mat &K)
+Point2f pixel2cam(const Point2f &p, const Mat &K)
 {
-  return Point2d((p.x - K.at<float>(0, 2)) / K.at<float>(0, 0),
+  return Point2f((p.x - K.at<float>(0, 2)) / K.at<float>(0, 0),
                  (p.y - K.at<float>(1, 2)) / K.at<float>(1, 1));  // without unit
 }
 
@@ -120,7 +120,7 @@ float recoverScale(vector<KeyPoint> keypoints_1, vector<KeyPoint> keypoints_2, v
   for (int i = 0; i < inliers_with_depth.size(); i++)
   {
     Vector3f x1, x2;
-    Point2d p1, p2;
+    Point2f p1, p2;
     p1 = pixel2cam(keypoints_1[inliers_with_depth[i].queryIdx].pt, K);
     p2 = pixel2cam(keypoints_2[inliers_with_depth[i].trainIdx].pt, K);
     x1 << float(p1.x), float(p1.y), 1;
@@ -166,15 +166,20 @@ vector<Matrix4f> calVisualOdometry(struct imageType image_data)
     cout << "*****计算第" << i << "组图片*****" << endl;
     cout << "一共找到了" << matches.size() << "组匹配点" << endl;
 
-    //对极几何估计两张图像间运动
-    Mat R, t;
-    poseEstimation2d2d(image_data.keypoints[i - 1], image_data.keypoints[i], matches, R, t, inliers);
+    Mat K;
+    Matrix3f camera_matrix = config.camera_matrix.topLeftCorner(3, 3);
+    eigen2cv(camera_matrix, K);
 
-    cout << "finish pose estimation" << endl;
     int count = 0;
     int count_PnP = 0;
     vector<DMatch> inliers_with_depth;
     vector<float> depth1, depth2;
+    vector<Point3f> pts_3d;
+    vector<Point2f> pts_2d;
+
+    Mat R, t;
+    poseEstimation2d2d(image_data.keypoints[i - 1], image_data.keypoints[i], matches, R, t, inliers);
+
     for (vector<DMatch>::iterator m = inliers.begin(); m != inliers.end(); m++)
     {
       KeyPoint kp1, kp2;
@@ -187,35 +192,58 @@ vector<Matrix4f> calVisualOdometry(struct imageType image_data)
       {
         count++;
         inliers_with_depth.push_back(*m);
-        depth1.push_back(float(d1 / 10000.0));
-        depth2.push_back(float(d2 / 10000.0));
+        depth1.push_back(float(d1 / 1000.0));
+        depth2.push_back(float(d2 / 1000.0));
       }
 
       if (d1 != 0)
       {
         count_PnP++;
+        float dd = float(d1 / 1000.0);
+        Point2f p1 = pixel2cam(kp1.pt, K);
+        // cout << Point3f(p1.x * dd, p1.y * dd, dd).x << " " << Point3f(p1.x * dd, p1.y * dd, dd).y << " "
+        //      << Point3f(p1.x * dd, p1.y * dd, dd).z << endl;
+        pts_3d.push_back(Point3f(p1.x * dd, p1.y * dd, dd));
+        pts_2d.push_back(kp2.pt);
       }
     }
     cout << "能够恢复绝对尺度的点数: " << count << endl;
     cout << "能够用PnP绝对尺度的点数: " << count_PnP << endl;
 
-    Matrix3f R_eigen;
-    Vector3f t_eigen;
-    Matrix4f T;
-    cv2eigen(R, R_eigen);
-    cv2eigen(t, t_eigen);
-
-    Mat K;
-    Matrix3f camera_matrix = config.camera_matrix.topLeftCorner(3, 3);
-    eigen2cv(camera_matrix, K);
     float scale;
 
-    if (count != 0)
-      scale = recoverScale(image_data.keypoints[i - 1], image_data.keypoints[i], inliers_with_depth, depth1, depth2,
-                           R_eigen, t_eigen, K);
-    else
-      scale = 0;
+    Matrix3f R_eigen;
+    Vector3f t_eigen;
 
+    if (count_PnP > 7)  // turn off PnP
+    {
+      // PnP估计两张图像间运动
+      Mat R_PnP, t_PnP, r_PnP;
+      solvePnPRansac(pts_3d, pts_2d, K, Mat(), r_PnP, t_PnP);
+      Rodrigues(r_PnP, R_PnP);
+      // cout << R_PnP << endl;
+      // cout << t_PnP << endl;
+      cv2eigen(R_PnP, R_eigen);
+      cv2eigen(t_PnP, t_eigen);
+      cout << "finish pose estimation by PnP" << endl;
+      scale = 1.0;
+    }
+    else
+    {
+      //对极几何估计两张图像间运动
+      cv2eigen(R, R_eigen);
+      cv2eigen(t, t_eigen);
+      if (count != 0)
+      {
+        scale = recoverScale(image_data.keypoints[i - 1], image_data.keypoints[i], inliers_with_depth, depth1, depth2,
+                             R_eigen, t_eigen, K);
+      }
+      else
+        scale = 0;
+      cout << "finish pose estimation by epipolar search" << endl;
+    }
+
+    Matrix4f T;
     T.setIdentity(4, 4);
     T.topLeftCorner(3, 3) = R_eigen;
     T.topRightCorner(3, 1) = t_eigen * scale;
@@ -256,10 +284,9 @@ void loop_closure(struct imageType image_data, vector<vector<int>> &loops)
   for (int i = 0; i < image_data.descriptors.size(); i++)
   {
     DBoW3::QueryResults ret;
-    const int num_of_result = 3;
-    const float ratio_test = 0.8;
-    const int frame_distance_threshold = 5;
-    const float threshold = 0.2;
+    const int num_of_result = config.num_of_result;
+    const int frame_distance_threshold = config.frame_distance_threshold;
+    const float threshold = config.score_threshold;
 
     db.query(image_data.descriptors[i], ret, num_of_result);  // max result=4
     for (int j = 0; j < num_of_result; j++)

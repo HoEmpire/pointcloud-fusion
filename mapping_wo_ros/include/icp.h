@@ -170,10 +170,11 @@ void ndtRegistration(struct pointcloudType point_cloud_data, vector<Eigen::Matri
   final_T.setIdentity(4, 4);
   pcl::PointCloud<pcl::PointXYZRGB> origin = *point_cloud_data.pc_filtered[0];
   // PCL_INFO("Fusing point clouds");
-
+  timer t;
   for (int i = 0; i < point_cloud_data.pc_filtered.size() - 1; i++)
   {
     std::cout << "*****fusing point cloud set " << i << " *****" << std::endl;
+    t.tic();
     PointCloud::Ptr src(new PointCloud);
     PointCloud::Ptr tgt(new PointCloud);
     src = point_cloud_data.pc_resample[i + 1];
@@ -205,9 +206,9 @@ void ndtRegistration(struct pointcloudType point_cloud_data, vector<Eigen::Matri
     // ROS_INFO_STREAM("Fitness Score: " << icp.getFitnessScore());
     // final_T = final_T * icp.getFinalTransformation();
     final_T = final_T * ndt.getFinalTransformation();
-
-    std::cout << "Final Transformation: " << std::endl << final_T << std::endl;
-    std::cout << "***************************" << std::endl;
+    std::cout << "Final Transformation: " << std::endl << ndt.getFinalTransformation() << std::endl;
+    cout << "Registraing point cloud " << i + 1 << " takes " << t.toc() << " seconds." << endl;
+    std::cout << "***************************" << std::endl << endl;
     pcl::PointCloud<pcl::PointXYZRGB> new_cloud;
 
     pcl::transformPointCloud(*point_cloud_data.pc_filtered[i + 1], new_cloud, final_T);

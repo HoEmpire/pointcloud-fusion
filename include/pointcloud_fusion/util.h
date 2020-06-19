@@ -18,6 +18,7 @@ struct ConfigSetting
   double max_cor_dis, trans_eps;
   int iter_num;
   double c1, c2, c3;
+
   void print()
   {
     std::cout << "Extrinsic matrix: \n" << extrinsic_matrix << std::endl;
@@ -77,8 +78,11 @@ void paintPointCloud(pcl::PointCloud<pcl::PointXYZI> point_cloud, const cv::Mat 
     p(2) = pt->z;
     if (p(2) == 0)
       continue;
+
     p = config.extrinsic_matrix * p;
-    float depth = p(2) * 10000;
+    if (p(2) > 65.0)
+      continue;
+    float depth = p(2) * 1000;
     p = p / p(2);
 
     // double r2 = p(0) * p(0) + p(1) * p(1);

@@ -68,7 +68,7 @@ struct imageType
   void init()
   {
     cout << "Extracting features in images!" << endl;
-    Ptr<SIFT> detector = SIFT::create(1000);
+    Ptr<SIFT> detector = SIFT::create(2000);
     for (Mat &image : imgs)
     {
       vector<KeyPoint> keypoint;
@@ -144,6 +144,10 @@ struct ConfigSetting
   int iter_num;
   double c1, c2, c3;
   double point_cloud_resolution;
+  int num_of_result = 4;
+  int frame_distance_threshold = 2;
+  float score_threshold = 0.8;
+
   void print()
   {
     cout << "Data root: " << data_path << endl;
@@ -195,6 +199,10 @@ void readConfig()
   infile >> config.c3;
   infile >> config.point_cloud_resolution;
 
+  infile >> config.num_of_result;
+  infile >> config.frame_distance_threshold;
+  infile >> config.score_threshold;
+
   infile.close();
   config.print();
 }
@@ -222,5 +230,32 @@ void readData(vector<pcl::PointCloud<pcl::PointXYZRGB>::Ptr> &pcs, struct imageT
     pcs.push_back(tmp);
     image_data.imgs.push_back(cv::imread(config.data_path + to_string(i) + ".jpg"));
     image_data.depths.push_back(cv::imread(config.data_path + to_string(i) + ".png", CV_16UC1));
+  }
+}
+
+void readDataWithID(vector<pcl::PointCloud<pcl::PointXYZRGB>::Ptr> &pcs, struct imageType &image_data)
+{
+  vector<int> ids;
+  int tmp;
+  ifstream infile(config.data_path + "id.txt");
+  while (1)
+  {
+    infile >> tmp;
+    if (infile.eof())
+      break;
+    cout << "read id: " << tmp << endl;
+    ids.push_back(tmp);
+  }
+
+  infile.close();
+
+  for (int i = 0; i < ids.size(); i++)
+  {
+    pcl::PointCloud<pcl::PointXYZRGB>::Ptr tmp(new pcl::PointCloud<pcl::PointXYZRGB>());
+
+    pcl::io::loadPCDFile<pcl::PointXYZRGB>(config.data_path + to_string(ids[i]) + ".pcd", *tmp);
+    pcs.push_back(tmp);
+    image_data.imgs.push_back(cv::imread(config.data_path + to_string(ids[i]) + ".jpg"));
+    image_data.depths.push_back(cv::imread(config.data_path + to_string(ids[i]) + ".png", CV_16UC1));
   }
 }
