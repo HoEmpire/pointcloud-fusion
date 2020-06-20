@@ -134,35 +134,28 @@ int main(int argv, char **argc)
 
   readConfig();
   vector<pcl::PointCloud<pcl::PointXYZRGB>::Ptr> pcs;
-  int data_len;
-  ifstream infile(config.data_path + "description.txt");
-  infile >> data_len;
-  if (!data_len)
-    cout << "\n NO data to read!" << endl;
-  else
-  {
-    cout << "The length of the data is: " << data_len << endl;
-    cout << "Reading data..." << endl;
-  }
-  infile.close();
+  struct imageType image_data;
+  struct timer t;
 
-  for (int i = 0; i < data_len; i++)
-  {
-    pcl::PointCloud<pcl::PointXYZRGB>::Ptr tmp(new pcl::PointCloud<pcl::PointXYZRGB>());
-    pcl::io::loadPCDFile<pcl::PointXYZRGB>(config.data_path + to_string(i) + ".pcd", *tmp);
-    pcs.push_back(tmp);
-  }
-  cout << "Loading point clouds finished!" << endl;
+  t.tic();
+  readData(pcs, image_data);
+  cout << "Reading data takes " << t.toc() << " seconds." << endl;
+
+  t.tic();
+  struct pointcloudType pc_data(pcs);
+  pc_data.filter();
+  pc_data.resample(config.point_cloud_resolution);
+  cout << "Preprocessing point clouds takes " << t.toc() << " seconds." << endl;
 
   pcl::PointCloud<pcl::PointXYZRGB> origin;
-  for (int i = 0; i < data_len; i++)
+  for (int i = 0; i < pc_data.pc_filtered.size(); i++)
   {
     Eigen::Matrix4d final_T;
     g2o::VertexSE3 *v = dynamic_cast<g2o::VertexSE3 *>(optimizer.vertex(i));
     final_T = v->estimate().matrix();
     cout << "Pose=" << endl << final_T << endl;
     pcl::PointCloud<pcl::PointXYZRGB> tmp;
-    pcl::transformPointCloud(*pcs[i], tmp, final_T);
+    pcl::transformPointCloud(*pc_data.pc_filtered[i], tmp, final_T);
     origin += tmp;
   }
 

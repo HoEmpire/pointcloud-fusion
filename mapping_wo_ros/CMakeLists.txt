@@ -31,11 +31,11 @@ include_directories(
 set( DBoW3_INCLUDE_DIRS "/usr/local/include" )
 set( DBoW3_LIBS "/usr/local/lib/libDBoW3.so" )
 
-add_executable(mapping src/mapping.cpp) 
-target_link_libraries(mapping ${PCL_LIBRARIES} ${Eigen3_INCLUDE_DIRS} ${OpenCV_LIBS} ${DBoW3_LIBS})  
+# add_executable(mapping src/mapping.cpp) 
+# target_link_libraries(mapping ${PCL_LIBRARIES} ${Eigen3_INCLUDE_DIRS} ${OpenCV_LIBS} ${DBoW3_LIBS})  
 
-# add_executable(tuning src/tuning.cpp) 
-# target_link_libraries(tuning ${PCL_LIBRARIES} ${Eigen3_INCLUDE_DIRS} ${OpenCV_LIBS} ${DBoW3_LIBS})  
+add_executable(tuning src/tuning.cpp) 
+target_link_libraries(tuning ${PCL_LIBRARIES} ${Eigen3_INCLUDE_DIRS} ${OpenCV_LIBS} ${DBoW3_LIBS})  
 
 # add_executable(generate_vocab src/generate_vocab.cpp) 
 # target_link_libraries(generate_vocab ${PCL_LIBRARIES} ${Eigen3_INCLUDE_DIRS} ${OpenCV_LIBS} ${DBoW3_LIBS})  

@@ -152,6 +152,7 @@ float recoverScale(vector<KeyPoint> keypoints_1, vector<KeyPoint> keypoints_2, v
     average_scale = 0.0;
   cout << "Recover Svale::Finish recover scale!!!! " << endl;
   cout << "Recover Svale::Average Scale: " << average_scale << endl;
+  return average_scale;
 }
 
 vector<Matrix4f> calVisualOdometry(struct imageType image_data)
@@ -215,7 +216,7 @@ vector<Matrix4f> calVisualOdometry(struct imageType image_data)
     Matrix3f R_eigen;
     Vector3f t_eigen;
 
-    if (count_PnP > 7)  // turn off PnP
+    if (count_PnP > 15)  // threshold for choosing PnP or epipolar search for scale recovery
     {
       // PnP估计两张图像间运动
       Mat R_PnP, t_PnP, r_PnP;
@@ -232,7 +233,9 @@ vector<Matrix4f> calVisualOdometry(struct imageType image_data)
     {
       //对极几何估计两张图像间运动
       cv2eigen(R, R_eigen);
+      // cout << t << endl;
       cv2eigen(t, t_eigen);
+      // cout << t_eigen << endl;
       if (count != 0)
       {
         scale = recoverScale(image_data.keypoints[i - 1], image_data.keypoints[i], inliers_with_depth, depth1, depth2,
@@ -246,7 +249,9 @@ vector<Matrix4f> calVisualOdometry(struct imageType image_data)
     Matrix4f T;
     T.setIdentity(4, 4);
     T.topLeftCorner(3, 3) = R_eigen;
+    // cout << scale << endl;
     T.topRightCorner(3, 1) = t_eigen * scale;
+    // cout << T << endl;
     T = config.extrinsic_matrix.inverse() * T.inverse() * config.extrinsic_matrix;
 
     // show in euler angle
@@ -260,6 +265,7 @@ vector<Matrix4f> calVisualOdometry(struct imageType image_data)
       cout << "WARNING:Visual odometry degenerate!!" << endl;
       T.setIdentity(4, 4);
     }
+    // cout << t << endl;
 
     cout << "*******************" << endl;
     T_between_frames.push_back(T);
