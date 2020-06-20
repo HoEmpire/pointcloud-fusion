@@ -220,4 +220,5 @@ void ndtRegistration(struct pointcloudType point_cloud_data, vector<Eigen::Matri
   else
     pcl::io::savePCDFile("/home/tim/ndt_two_frame.pcd", origin);
   PCL_INFO("Fusion Complete!!");
+  cout << endl;
 }

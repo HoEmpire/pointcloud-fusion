@@ -42,10 +42,13 @@ int main(int argv, char **argc)
 
   Matrix4f tmp_pos;
   tmp_pos.setIdentity(4, 4);
+  vector<Matrix4f> T_vertex;
   outfile << "VERTEX: 0 0.0 0.0 0.0 0.0 0.0 0.0 1.0" << endl;
+  T_vertex.push_back(tmp_pos);
   for (int i = 0; i < T_result.size(); i++)
   {
     tmp_pos = tmp_pos * T_result[i];
+    T_vertex.push_back(tmp_pos);
     Matrix3d rotation_matrix = tmp_pos.topLeftCorner(3, 3).cast<double>();
     Quaterniond q(rotation_matrix);
     outfile << "VERTEX: " << i + 1 << " " << tmp_pos.topRightCorner(3, 1).transpose() << " " << q.x() << " " << q.y()
@@ -88,6 +91,21 @@ int main(int argv, char **argc)
 
     Matrix3d rotation_matrix = T_result_two[0].topLeftCorner(3, 3).cast<double>();
     Quaterniond q(rotation_matrix);
+
+    // uncertainty criterion
+    Matrix4f T_edge = T_vertex[loops[i][1]].inverse() * T_vertex[loops[i][0]];
+
+    Matrix4f T_error = T_edge * T_result_two[0];
+    // cout << "T edge: " << endl << T_edge << endl;
+    // cout << "T_result: " << endl << T_result_two[0] << endl;
+    // cout << "T_error: " << endl << T_error << endl;
+    Vector3f euler_angle = rotationMatrixToEulerAngles(T_error.topLeftCorner(3, 3)) * 180 / PI;
+    cout << "error in euler anles (deg): " << euler_angle.transpose() << endl;
+    cout << "error in translation (m): " << T_error.topRightCorner(3, 1).transpose() << endl;
+    cout << "error sum in angles (deg): " << euler_angle.norm() << endl;
+    cout << "error sum in translation (m): " << T_error.topRightCorner(3, 1).norm() << endl;
+    cout << endl << endl;
+    // write the data
     outfile << "EDGE: " << loops[i][0] << " " << loops[i][1] << " " << T_result_two[0].topRightCorner(3, 1).transpose()
             << " " << q.x() << " " << q.y() << " " << q.z() << " " << q.w() << endl;
   }

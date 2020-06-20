@@ -259,7 +259,7 @@ vector<Matrix4f> calVisualOdometry(struct imageType image_data)
     Vector3f euler_angle = rotationMatrixToEulerAngles(T.topLeftCorner(3, 3)) * 180 / PI;
     cout << "euler anles = " << euler_angle.transpose() << endl;
     float angles =
-        sqrt(euler_angle[0] * euler_angle[0] + euler_angle[0] * euler_angle[0] + euler_angle[0] * euler_angle[0]);
+        sqrt(euler_angle[0] * euler_angle[0] + euler_angle[1] * euler_angle[1] + euler_angle[2] * euler_angle[2]);
     if (angles > 30)  // TODO hardcode in here
     {
       cout << "WARNING:Visual odometry degenerate!!" << endl;
