@@ -4,6 +4,7 @@
 #include <vector>
 
 #include <pcl/filters/filter.h>
+#include <pcl/filters/radius_outlier_removal.h>       //统计滤波器头文件
 #include <pcl/filters/statistical_outlier_removal.h>  //统计滤波器头文件
 #include <pcl/filters/voxel_grid.h>
 #include <pcl/io/pcd_io.h>
@@ -99,19 +100,51 @@ struct pointcloudType
     this->pc_origin = pc_origin;
   }
 
-  void filter()
+  void filter(int meanK, float std_threshold)
   {
     // point cloud preprocess
     cout << "Start filtering the point cloud!" << endl;
     pcl::StatisticalOutlierRemoval<pcl::PointXYZRGB> statisticalFilter;
-    statisticalFilter.setMeanK(50);  // TODO hardcode in here
-    statisticalFilter.setStddevMulThresh(1);
+    statisticalFilter.setMeanK(meanK);  // TODO hardcode in here
+    statisticalFilter.setStddevMulThresh(std_threshold);
+    // pcl::RadiusOutlierRemoval<pcl::PointXYZRGB> radiusFilter;  //创建滤波器对象
+
+    // radiusFilter.setRadiusSearch(radius);                 // 设置搜索半径
+    // radiusFilter.setMinNeighborsInRadius(min_neighbors);  // 设置一个内点最少的邻居数目
 
     for (pcl::PointCloud<pcl::PointXYZRGB>::Ptr &pc : pc_origin)
     {
       pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_filtered(new pcl::PointCloud<pcl::PointXYZRGB>);
       statisticalFilter.setInputCloud(pc);
       statisticalFilter.filter(*cloud_filtered);
+      // radiusFilter.setInputCloud(cloud_filtered);
+      // radiusFilter.filter(*cloud_filtered);  //滤波结果存储到cloud_filtered
+
+      pc_filtered.push_back(cloud_filtered);
+    }
+    cout << "Filtering finished!" << endl;
+  }
+
+  void modelFilter(int meanK, float std_threshold)
+  {
+    // point cloud preprocess
+    cout << "Start filtering the point cloud!" << endl;
+    pcl::StatisticalOutlierRemoval<pcl::PointXYZRGB> statisticalFilter;
+    statisticalFilter.setMeanK(meanK);  // TODO hardcode in here
+    statisticalFilter.setStddevMulThresh(std_threshold);
+    pcl::RadiusOutlierRemoval<pcl::PointXYZRGB> radiusFilter;  //创建滤波器对象
+
+    radiusFilter.setRadiusSearch(0.1);         // 设置搜索半径
+    radiusFilter.setMinNeighborsInRadius(20);  // 设置一个内点最少的邻居数目
+
+    for (pcl::PointCloud<pcl::PointXYZRGB>::Ptr &pc : pc_origin)
+    {
+      pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_filtered(new pcl::PointCloud<pcl::PointXYZRGB>);
+      statisticalFilter.setInputCloud(pc);
+      statisticalFilter.filter(*cloud_filtered);
+      radiusFilter.setInputCloud(cloud_filtered);
+      radiusFilter.filter(*cloud_filtered);  //滤波结果存储到cloud_filtered
+
       pc_filtered.push_back(cloud_filtered);
     }
     cout << "Filtering finished!" << endl;
@@ -147,6 +180,8 @@ struct ConfigSetting
   int num_of_result = 4;
   int frame_distance_threshold = 2;
   float score_threshold = 0.8;
+  int filter_meanK = 100;
+  float filter_std_threshold = 1.0;
 
   void print()
   {
@@ -202,6 +237,9 @@ void readConfig()
   infile >> config.num_of_result;
   infile >> config.frame_distance_threshold;
   infile >> config.score_threshold;
+
+  infile >> config.filter_meanK;
+  infile >> config.filter_std_threshold;
 
   infile.close();
   config.print();

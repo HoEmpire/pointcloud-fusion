@@ -143,7 +143,7 @@ int main(int argv, char **argc)
 
   t.tic();
   struct pointcloudType pc_data(pcs);
-  pc_data.filter();
+  pc_data.filter(config.filter_std_threshold, config.frame_distance_threshold);
   pc_data.resample(config.point_cloud_resolution);
   cout << "Preprocessing point clouds takes " << t.toc() << " seconds." << endl;
 
