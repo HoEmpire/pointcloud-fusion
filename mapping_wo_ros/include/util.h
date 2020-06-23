@@ -82,90 +82,6 @@ struct imageType
   };
 };
 
-struct pointcloudType
-{
-  vector<pcl::PointCloud<pcl::PointXYZRGB>::Ptr> pc_origin, pc_resample, pc_filtered;
-
-  pointcloudType(vector<pcl::PointCloud<pcl::PointXYZRGB>::Ptr> pc_origin,
-                 vector<pcl::PointCloud<pcl::PointXYZRGB>::Ptr> pc_resample,
-                 vector<pcl::PointCloud<pcl::PointXYZRGB>::Ptr> pc_filtered)
-  {
-    this->pc_origin = pc_origin;
-    this->pc_resample = pc_resample;
-    this->pc_filtered = pc_filtered;
-  }
-
-  pointcloudType(vector<pcl::PointCloud<pcl::PointXYZRGB>::Ptr> pc_origin)
-  {
-    this->pc_origin = pc_origin;
-  }
-
-  void filter(int meanK, float std_threshold)
-  {
-    // point cloud preprocess
-    cout << "Start filtering the point cloud!" << endl;
-    pcl::StatisticalOutlierRemoval<pcl::PointXYZRGB> statisticalFilter;
-    statisticalFilter.setMeanK(meanK);  // TODO hardcode in here
-    statisticalFilter.setStddevMulThresh(std_threshold);
-    // pcl::RadiusOutlierRemoval<pcl::PointXYZRGB> radiusFilter;  //创建滤波器对象
-
-    // radiusFilter.setRadiusSearch(radius);                 // 设置搜索半径
-    // radiusFilter.setMinNeighborsInRadius(min_neighbors);  // 设置一个内点最少的邻居数目
-
-    for (pcl::PointCloud<pcl::PointXYZRGB>::Ptr &pc : pc_origin)
-    {
-      pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_filtered(new pcl::PointCloud<pcl::PointXYZRGB>);
-      statisticalFilter.setInputCloud(pc);
-      statisticalFilter.filter(*cloud_filtered);
-      // radiusFilter.setInputCloud(cloud_filtered);
-      // radiusFilter.filter(*cloud_filtered);  //滤波结果存储到cloud_filtered
-
-      pc_filtered.push_back(cloud_filtered);
-    }
-    cout << "Filtering finished!" << endl;
-  }
-
-  void modelFilter(int meanK, float std_threshold)
-  {
-    // point cloud preprocess
-    cout << "Start filtering the point cloud!" << endl;
-    pcl::StatisticalOutlierRemoval<pcl::PointXYZRGB> statisticalFilter;
-    statisticalFilter.setMeanK(meanK);  // TODO hardcode in here
-    statisticalFilter.setStddevMulThresh(std_threshold);
-    pcl::RadiusOutlierRemoval<pcl::PointXYZRGB> radiusFilter;  //创建滤波器对象
-
-    radiusFilter.setRadiusSearch(0.1);         // 设置搜索半径
-    radiusFilter.setMinNeighborsInRadius(20);  // 设置一个内点最少的邻居数目
-
-    for (pcl::PointCloud<pcl::PointXYZRGB>::Ptr &pc : pc_origin)
-    {
-      pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_filtered(new pcl::PointCloud<pcl::PointXYZRGB>);
-      statisticalFilter.setInputCloud(pc);
-      statisticalFilter.filter(*cloud_filtered);
-      radiusFilter.setInputCloud(cloud_filtered);
-      radiusFilter.filter(*cloud_filtered);  //滤波结果存储到cloud_filtered
-
-      pc_filtered.push_back(cloud_filtered);
-    }
-    cout << "Filtering finished!" << endl;
-  }
-
-  void resample(double resolution)
-  {
-    cout << "Start resampling the point cloud!" << endl;
-    pcl::VoxelGrid<pcl::PointXYZRGB> grid;
-    grid.setLeafSize(resolution, resolution, resolution);
-    for (pcl::PointCloud<pcl::PointXYZRGB>::Ptr &pc : pc_filtered)
-    {
-      grid.setInputCloud(pc);
-      pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_resample(new pcl::PointCloud<pcl::PointXYZRGB>);
-      grid.filter(*cloud_resample);
-      pc_resample.push_back(cloud_resample);
-    }
-    cout << "Resampling finished!" << endl;
-  }
-};
-
 // config util
 struct ConfigSetting
 {
@@ -297,3 +213,194 @@ void readDataWithID(vector<pcl::PointCloud<pcl::PointXYZRGB>::Ptr> &pcs, struct 
     image_data.depths.push_back(cv::imread(config.data_path + to_string(ids[i]) + ".png", CV_16UC1));
   }
 }
+
+// Point cloud depth filter functions
+void ransacStatisticalFilter(pcl::PointCloud<pcl::PointXYZRGB> input, pcl::PointCloud<pcl::PointXYZRGB> &output)
+{
+  if (input.size() <= 2)
+  {
+    output = input;
+    return;
+  }
+
+  pcl::PointCloud<pcl::PointWithRange> input_xyzrange;
+  input_xyzrange.resize(input.size());
+  for (int i = 0; i < input.size(); i++)
+  {
+    input_xyzrange[i].x = input[i].x;
+    input_xyzrange[i].y = input[i].y;
+    input_xyzrange[i].z = input[i].z;
+    input_xyzrange[i].range =
+        sqrt(input_xyzrange[i].x * input_xyzrange[i].x + input_xyzrange[i].y * input_xyzrange[i].y +
+             input_xyzrange[i].z * input_xyzrange[i].z);
+  }
+  const int max_iter = 10;
+  float threshold = 0.01;
+  int num_inlier = 0;
+  // RANSAC
+  vector<int> index_final;
+  pcl::PointCloud<pcl::PointWithRange> inlier_final;
+  while (inlier_final.size() < 2)
+  {
+    for (int iter = 0; iter < max_iter; iter++)
+    {
+      int rand_index = rand() % input.size();
+      pcl::PointCloud<pcl::PointWithRange> inlier_tmp;
+      vector<int> index_tmp;
+      float depth = input_xyzrange[rand_index].range;
+      for (int i = 0; i < input_xyzrange.size(); i++)
+      {
+        if (abs(input_xyzrange[i].range - depth) / (depth + 1e-9) < threshold)
+        {
+          inlier_tmp.push_back(input_xyzrange[i]);
+          index_tmp.push_back(i);
+        }
+      }
+      if (inlier_tmp.size() > num_inlier)
+      {
+        inlier_final = inlier_tmp;
+        num_inlier = inlier_tmp.size();
+        index_final = index_tmp;
+      }
+    }
+    threshold *= 2;
+  }
+
+  for (int i = 0; i < index_final.size(); i++)
+    output.push_back(input[index_final[i]]);
+}
+
+struct pointcloudType
+{
+  vector<pcl::PointCloud<pcl::PointXYZRGB>::Ptr> pc_origin, pc_resample, pc_filtered;
+
+  pointcloudType(vector<pcl::PointCloud<pcl::PointXYZRGB>::Ptr> pc_origin,
+                 vector<pcl::PointCloud<pcl::PointXYZRGB>::Ptr> pc_resample,
+                 vector<pcl::PointCloud<pcl::PointXYZRGB>::Ptr> pc_filtered)
+  {
+    this->pc_origin = pc_origin;
+    this->pc_resample = pc_resample;
+    this->pc_filtered = pc_filtered;
+  }
+
+  pointcloudType(vector<pcl::PointCloud<pcl::PointXYZRGB>::Ptr> pc_origin)
+  {
+    this->pc_origin = pc_origin;
+  }
+
+  void filter(int meanK, float std_threshold)
+  {
+    // point cloud preprocess
+    cout << "Start filtering the point cloud!" << endl;
+    pcl::StatisticalOutlierRemoval<pcl::PointXYZRGB> statisticalFilter;
+    statisticalFilter.setMeanK(meanK);  // TODO hardcode in here
+    statisticalFilter.setStddevMulThresh(std_threshold);
+    // statisticalFilter.setKeepOrganized(true);
+    pcl::RadiusOutlierRemoval<pcl::PointXYZRGB> radiusFilter;  //创建滤波器对象
+
+    // radiusFilter.setRadiusSearch(std_threshold);  // 设置搜索半径
+    // radiusFilter.setMinNeighborsInRadius(meanK);  // 设置一个内点最少的邻居数目
+
+    for (pcl::PointCloud<pcl::PointXYZRGB>::Ptr &pc : pc_filtered)
+    {
+      pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_filtered(new pcl::PointCloud<pcl::PointXYZRGB>);
+      statisticalFilter.setInputCloud(pc);
+      statisticalFilter.filter(*pc);
+      // radiusFilter.setInputCloud(pc);
+      // radiusFilter.filter(*pc);  //滤波结果存储到cloud_filtered
+
+      // pc_filtered.push_back(cloud_filtered);
+    }
+    cout << "Filtering finished!" << endl;
+  }
+
+  void depthFilter()
+  {
+    // point cloud preprocess
+    cout << "Start filtering the point cloud!" << endl;
+    timer t;
+    t.tic();
+    vector<vector<long int>> index(1080 / 10, vector<long int>(1440 / 10, -1));
+    // long int index[1080 / 10][1440 / 10];
+    // for (int i = 0; i < 1080 / 10; i++)
+    //   for (int j = 0; j < 1440 / 10; j++)
+    //     index[i][j] = -1;
+    vector<pcl::PointCloud<pcl::PointXYZRGB>> point_cloud_for_process;
+    long int count = 0;
+    for (pcl::PointCloud<pcl::PointXYZRGB>::Ptr &pc : pc_origin)
+    {
+      // cout << "fuck1" << endl;
+      // deal with a set of point cloud
+      for (pcl::PointXYZRGB &p : *pc)
+      {
+        // cout << "fuck2" << endl;
+        Vector3f point;
+        if (p.x != 0)
+          point << -p.y / p.x, -p.z / p.x, 1.0;
+        else
+          continue;
+        point = config.camera_matrix * point / 10.0;
+
+        // cout << "fuck3" << endl;
+        int u, v;
+        u = int(point(0));
+        v = int(point(1));
+        if (u >= 0 && u < 1440 / 10 && v >= 0 && v < 1080 / 10)
+        {
+          // cout << u << " " << v << endl;
+          if (index[v][u] == -1)
+          {
+            index[v][u] = count;
+            count++;
+            // cout << count << endl;
+
+            pcl::PointCloud<pcl::PointXYZRGB> point_cloud_tmp;
+            point_cloud_tmp.push_back(p);
+            point_cloud_for_process.push_back(point_cloud_tmp);
+          }
+          else
+            point_cloud_for_process[index[v][u]].push_back(p);
+        }
+        else
+        {
+          cout << u << " " << v << endl;
+          continue;
+        }
+        // cout << "fuck4" << endl;
+      }
+      cout << "Getting index take " << t.toc() << " seconds" << endl;
+      cout << "Original point cloud have " << pc->points.size() << " points" << endl;
+      t.tic();
+      pcl::PointCloud<pcl::PointXYZRGB> cloud_filtered;
+      // cout << "fuck5" << endl;
+      for (int i = 0; i < point_cloud_for_process.size(); i++)
+      {
+        // cout << i << endl;
+        pcl::PointCloud<pcl::PointXYZRGB> one_point_cloud;
+        ransacStatisticalFilter(point_cloud_for_process[i], one_point_cloud);
+        // cout << one_point.x << " " << one_point.y << " " << one_point.z << endl;
+        cloud_filtered += one_point_cloud;
+      }
+      // cout << "fuck6" << endl;
+      pc_filtered.push_back(cloud_filtered.makeShared());
+      cout << "Filtering pc take " << t.toc() << " seconds" << endl;
+      cout << "Filtered point cloud have " << cloud_filtered.size() << " points" << endl;
+    }
+    cout << "Filtering finished!" << endl;
+  }
+
+  void resample(double resolution)
+  {
+    cout << "Start resampling the point cloud!" << endl;
+    pcl::VoxelGrid<pcl::PointXYZRGB> grid;
+    grid.setLeafSize(resolution, resolution, resolution);
+    for (pcl::PointCloud<pcl::PointXYZRGB>::Ptr &pc : pc_filtered)
+    {
+      grid.setInputCloud(pc);
+      pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_resample(new pcl::PointCloud<pcl::PointXYZRGB>);
+      grid.filter(*cloud_resample);
+      pc_resample.push_back(cloud_resample);
+    }
+    cout << "Resampling finished!" << endl;
+  }
+};
