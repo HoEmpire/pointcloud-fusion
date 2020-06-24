@@ -262,6 +262,8 @@ void ransacStatisticalFilter(pcl::PointCloud<pcl::PointXYZRGB> input, pcl::Point
         num_inlier = inlier_tmp.size();
         index_final = index_tmp;
       }
+      if (inlier_final.size() / input.size() * 1.0 > 0.5)
+        break;
     }
     threshold *= 2;
   }
@@ -327,6 +329,10 @@ struct pointcloudType
     //     index[i][j] = -1;
     vector<pcl::PointCloud<pcl::PointXYZRGB>> point_cloud_for_process;
     long int count = 0;
+    float fx = config.camera_matrix(0, 0);
+    float fy = config.camera_matrix(1, 1);
+    float cx = config.camera_matrix(0, 2);
+    float cy = config.camera_matrix(1, 2);
     for (pcl::PointCloud<pcl::PointXYZRGB>::Ptr &pc : pc_origin)
     {
       // cout << "fuck1" << endl;
@@ -334,17 +340,17 @@ struct pointcloudType
       for (pcl::PointXYZRGB &p : *pc)
       {
         // cout << "fuck2" << endl;
-        Vector3f point;
-        if (p.x != 0)
-          point << -p.y / p.x, -p.z / p.x, 1.0;
-        else
-          continue;
-        point = config.camera_matrix * point / 10.0;
+        // Vector3f point;
+        // if (p.x != 0)
+        //   point << -p.y / p.x, -p.z / p.x, 1.0;
+        // else
+        //   continue;
+        // point = config.camera_matrix * point / 10.0;
 
         // cout << "fuck3" << endl;
         int u, v;
-        u = int(point(0));
-        v = int(point(1));
+        u = int((-p.y / p.x * fx + cx) / 10.0);
+        v = int((-p.z / p.x * fy + cy) / 10.0);
         if (u >= 0 && u < 1440 / 10 && v >= 0 && v < 1080 / 10)
         {
           // cout << u << " " << v << endl;

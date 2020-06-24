@@ -23,7 +23,7 @@ int main(int argv, char **argc)
   // pc_data.resample(config.point_cloud_resolution);
   pc_data.pc_filtered[0]->width = pc_data.pc_filtered[0]->size();
   pc_data.pc_filtered[0]->height = 1;
-  // pc_data.filter(config.filter_meanK, config.filter_std_threshold);
+  pc_data.filter(config.filter_meanK, config.filter_std_threshold);
   cout << "Preprocessing point clouds takes " << t.toc() << " seconds." << endl;
 
   pcl::io::savePCDFile("/home/tim/filtered_pc.pcd", *pc_data.pc_filtered[0]);
