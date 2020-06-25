@@ -215,7 +215,9 @@ void readDataWithID(vector<pcl::PointCloud<pcl::PointXYZRGB>::Ptr> &pcs, struct 
 }
 
 // Point cloud depth filter functions
-void ransacStatisticalFilter(pcl::PointCloud<pcl::PointXYZRGB> input, pcl::PointCloud<pcl::PointXYZRGB> &output)
+// param threshold = error/mean
+void ransacStatisticalFilter(pcl::PointCloud<pcl::PointXYZRGB> input, pcl::PointCloud<pcl::PointXYZRGB> &output,
+                             float threshold = 0.01, const int max_iter = 10)
 {
   if (input.size() <= 2)
   {
@@ -234,8 +236,7 @@ void ransacStatisticalFilter(pcl::PointCloud<pcl::PointXYZRGB> input, pcl::Point
         sqrt(input_xyzrange[i].x * input_xyzrange[i].x + input_xyzrange[i].y * input_xyzrange[i].y +
              input_xyzrange[i].z * input_xyzrange[i].z);
   }
-  const int max_iter = 10;
-  float threshold = 0.01;
+
   int num_inlier = 0;
   // RANSAC
   vector<int> index_final;
