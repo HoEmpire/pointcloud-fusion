@@ -126,6 +126,8 @@ struct ConfigSetting
   float score_threshold = 0.8;
   int filter_meanK = 100;
   float filter_std_threshold = 1.0;
+  float uncertainty_translation = 0.1;  // m
+  float uncertainty_degree = 0.5;       // deg
 
   void print()
   {

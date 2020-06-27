@@ -221,50 +221,53 @@ void ndtRegistration(struct pointcloudType point_cloud_data, vector<Eigen::Matri
   cout << endl;
 }
 
-void calLoopsTransform(struct pointcloudType point_cloud_data, vector<vector<int>> loops,
-                       vector<Eigen::Matrix4f> &result_T)
+void calLoopsTransform(struct pointcloudType point_cloud_data, vector<vector<int>> loops, vector<Eigen::Matrix4f> T_vo,
+                       vector<Eigen::Matrix4f> T_pc, vector<vector<int>> &loops_good, vector<Eigen::Matrix4f> &T_result)
 {
   for (int i = 0; i < loops.size(); i++)
   {
-    vector<Mat> imgs, depths;
     vector<pcl::PointCloud<pcl::PointXYZRGB>::Ptr> pcs_two_origin, pcs_two_filtered, pcs_two_resample;
 
-    pcs_two_origin.push_back(pc_data.pc_origin[loops[i][0]]);
-    pcs_two_origin.push_back(pc_data.pc_origin[loops[i][1]]);
-    pcs_two_filtered.push_back(pc_data.pc_filtered[loops[i][0]]);
-    pcs_two_filtered.push_back(pc_data.pc_filtered[loops[i][1]]);
-    pcs_two_resample.push_back(pc_data.pc_resample[loops[i][0]]);
-    pcs_two_resample.push_back(pc_data.pc_resample[loops[i][1]]);
+    pcs_two_origin.push_back(point_cloud_data.pc_origin[loops[i][0]]);
+    pcs_two_origin.push_back(point_cloud_data.pc_origin[loops[i][1]]);
+    pcs_two_filtered.push_back(point_cloud_data.pc_filtered[loops[i][0]]);
+    pcs_two_filtered.push_back(point_cloud_data.pc_filtered[loops[i][1]]);
+    pcs_two_resample.push_back(point_cloud_data.pc_resample[loops[i][0]]);
+    pcs_two_resample.push_back(point_cloud_data.pc_resample[loops[i][1]]);
     struct pointcloudType pc_data_two(pcs_two_origin, pcs_two_filtered, pcs_two_resample);
 
-    imgs.push_back(image_data.imgs[loops[i][0]]);
-    imgs.push_back(image_data.imgs[loops[i][1]]);
-    depths.push_back(image_data.depths[loops[i][0]]);
-    depths.push_back(image_data.depths[loops[i][1]]);
+    vector<Eigen::Matrix4f> T_result_two, T_init_two;
+    T_init_two.push_back(T_vo[i]);
 
-    struct imageType image_data_two;
-    image_data_two.imgs = imgs;
-    image_data_two.depths = depths;
-    image_data_two.init();
-    vector<Matrix4f> T_init_two = calVisualOdometry(image_data_two);
-    vector<Matrix4f> T_result_two;
+    cout << "*****fusing point " << loops[i][0] << " and " << loops[i][1] << " *****" << endl;
     ndtRegistration(pc_data_two, T_init_two, T_result_two);
 
     Matrix3d rotation_matrix = T_result_two[0].topLeftCorner(3, 3).cast<double>();
     Quaterniond q(rotation_matrix);
 
     // uncertainty criterion
-    Matrix4f T_edge = T_vertex[loops[i][1]].inverse() * T_vertex[loops[i][0]];
+    Matrix4f T_edge = T_pc[loops[i][1]].inverse() * T_pc[loops[i][0]];
 
     Matrix4f T_error = T_edge * T_result_two[0];
     // cout << "T edge: " << endl << T_edge << endl;
     // cout << "T_result: " << endl << T_result_two[0] << endl;
     // cout << "T_error: " << endl << T_error << endl;
     Vector3f euler_angle = rotationMatrixToEulerAngles(T_error.topLeftCorner(3, 3)) * 180 / PI;
+    cout << "Error information between vertex " << loops[i][0] << " and vertex " << loops[i][1] << endl;
     cout << "error in euler anles (deg): " << euler_angle.transpose() << endl;
     cout << "error in translation (m): " << T_error.topRightCorner(3, 1).transpose() << endl;
     cout << "error sum in angles (deg): " << euler_angle.norm() << endl;
     cout << "error sum in translation (m): " << T_error.topRightCorner(3, 1).norm() << endl;
-    cout << endl << endl;
+    int distance = loops[i][1] - loops[i][0];
+    if (T_error.topRightCorner(3, 1).norm() > config.uncertainty_translation * distance ||
+        euler_angle.norm() > config.uncertainty_translation * distance)
+    {
+      cout << "This pair is good loop!" << endl;
+      T_result.push_back(T_result_two[0]);
+      loops_good.push_back(loops[i]);
+    }
+    else
+      cout << "Error is too large, this pair is rejected!" << endl;
+    cout << endl;
   }
 }

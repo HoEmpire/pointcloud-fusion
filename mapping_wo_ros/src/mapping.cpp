@@ -42,7 +42,6 @@ int main(int argv, char **argc)
   loop_closure(image_data, loops, T_loops);
 
   ofstream outfile("./result.txt");
-
   Matrix4f tmp_pos;
   tmp_pos.setIdentity(4, 4);
   vector<Matrix4f> T_vertex;
