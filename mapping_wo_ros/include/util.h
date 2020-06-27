@@ -66,6 +66,19 @@ struct imageType
 {
   vector<Mat> imgs, depths, descriptors;
   vector<vector<KeyPoint>> keypoints;
+
+  imageType(vector<Mat> imgs, vector<Mat> depths, vector<Mat> descriptors, vector<vector<KeyPoint>> keypoints)
+  {
+    this->imgs = imgs;
+    this->depths = depths;
+    this->descriptors = descriptors;
+    this->keypoints = keypoints;
+  }
+
+  imageType()
+  {
+  }
+
   void init()
   {
     cout << "Extracting features in images!" << endl;
@@ -79,7 +92,22 @@ struct imageType
       keypoints.push_back(keypoint);
     }
     cout << "Features extraction finished!" << endl;
-  };
+  }
+
+  struct imageType copy_by_index(vector<int> index)
+  {
+    vector<Mat> imgs_tmp, depths_tmp, descriptors_tmp;
+    vector<vector<KeyPoint>> keypoints_tmp;
+    for (int i = 0; i < index.size(); i++)
+    {
+      imgs_tmp.push_back(this->imgs[index[i]]);
+      depths_tmp.push_back(this->depths[index[i]]);
+      descriptors_tmp.push_back(this->descriptors[index[i]]);
+      keypoints_tmp.push_back(this->keypoints[index[i]]);
+    }
+    struct imageType new_image_data(imgs_tmp, depths_tmp, depths_tmp, keypoints_tmp);
+    return new_image_data;
+  }
 };
 
 // config util
@@ -291,10 +319,12 @@ struct pointcloudType
     this->pc_origin = pc_origin;
   }
 
-  void filter(int meanK, float std_threshold)
+  void standardFilter(int meanK, float std_threshold)
   {
     // point cloud preprocess
-    cout << "Start filtering the point cloud!" << endl;
+    timer t;
+    cout << "Standard Filter: Start filtering the point cloud!" << endl;
+    t.tic();
     pcl::StatisticalOutlierRemoval<pcl::PointXYZRGB> statisticalFilter;
     statisticalFilter.setMeanK(meanK);  // TODO hardcode in here
     statisticalFilter.setStddevMulThresh(std_threshold);
@@ -303,63 +333,108 @@ struct pointcloudType
 
     // radiusFilter.setRadiusSearch(std_threshold);  // 设置搜索半径
     // radiusFilter.setMinNeighborsInRadius(meanK);  // 设置一个内点最少的邻居数目
-
-    for (pcl::PointCloud<pcl::PointXYZRGB>::Ptr &pc : pc_filtered)
+    if (pc_filtered.size() != 0)
     {
-      pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_filtered(new pcl::PointCloud<pcl::PointXYZRGB>);
-      statisticalFilter.setInputCloud(pc);
-      statisticalFilter.filter(*pc);
-      // radiusFilter.setInputCloud(pc);
-      // radiusFilter.filter(*pc);  //滤波结果存储到cloud_filtered
+      for (pcl::PointCloud<pcl::PointXYZRGB>::Ptr &pc : pc_filtered)
+      {
+        pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_filtered(new pcl::PointCloud<pcl::PointXYZRGB>);
+        statisticalFilter.setInputCloud(pc);
+        statisticalFilter.filter(*pc);
+        // radiusFilter.setInputCloud(pc);
+        // radiusFilter.filter(*pc);  //滤波结果存储到cloud_filtered
 
-      // pc_filtered.push_back(cloud_filtered);
+        // pc_filtered.push_back(cloud_filtered);
+      }
     }
-    cout << "Filtering finished!" << endl;
+    else
+    {
+      for (pcl::PointCloud<pcl::PointXYZRGB>::Ptr &pc : pc_origin)
+      {
+        pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_filtered(new pcl::PointCloud<pcl::PointXYZRGB>);
+        statisticalFilter.setInputCloud(pc);
+        statisticalFilter.filter(*pc);
+        // radiusFilter.setInputCloud(pc);
+        // radiusFilter.filter(*pc);  //滤波结果存储到cloud_filtered
+
+        // pc_filtered.push_back(cloud_filtered);
+      }
+    }
+    cout << "Standard filter: Filtering pc takes " << t.toc() << " seconds" << endl;
+    cout << "Standard Filter: Filtering finished!" << endl;
   }
 
-  void depthFilter()
+  // can only be used as first step of point cloud preprocess
+  // @param ratio: Smaller value for large scale dataset, larger value for small scale dataset,
+  void depthFilter(float ratio = 10.0)
   {
-    // point cloud preprocess
-    cout << "Start filtering the point cloud!" << endl;
+    if (pc_origin.size() == 0)
+    {
+      cout << "Error in depth filter! No point cloud exists!" << endl;
+      return;
+    }
+    const int box_size_x = 1000;
+    const int box_size_y = 1000;
     timer t;
+    // Get the size of the 2D array ()
     t.tic();
-    vector<vector<long int>> index(1080 / 10, vector<long int>(1440 / 10, -1));
-    // long int index[1080 / 10][1440 / 10];
-    // for (int i = 0; i < 1080 / 10; i++)
-    //   for (int j = 0; j < 1440 / 10; j++)
-    //     index[i][j] = -1;
+    cout << "Depth filter: Getting mapping size..." << endl;
+    float x_max, x_min, y_max, y_min;
+    float r_x, r_y, c_x, c_y;
+    x_max = y_max = -10000.0;
+    x_min = y_min = 10000.0;
+    for (pcl::PointXYZRGB &p : *pc_origin[0])
+    {
+      float x = -p.y / p.x;
+      float y = -p.z / p.x;
+      if (x > x_max)
+        x_max = x;
+      if (x < x_min)
+        x_min = x;
+      if (y > y_max)
+        y_max = y;
+      if (y < y_min)
+        y_min = y;
+    }
+    r_x = x_max - x_min;
+    r_y = y_max - y_min;
+    c_x = (x_max + x_min) / 2.0;
+    c_y = (y_max + y_min) / 2.0;
+    cout << "Depth filter: diameter of x: " << r_x << endl;
+    cout << "Depth filter: diameter of y: " << r_y << endl;
+    cout << "Depth filter: center of x: " << c_x << endl;
+    cout << "Depth filter: center of y: " << c_y << endl;
+    const float safety_ratio = 1.2;
+    float fx, fy;
+    fx = box_size_x * 1.0 / (r_x * safety_ratio);
+    fy = box_size_y * 1.0 / (r_y * safety_ratio);
+
+    float cx = c_x * fx + box_size_x / 2.0;
+    float cy = c_y * fy + box_size_y / 2.0;
+    cout << "Depth filter: fx: " << fx << endl;
+    cout << "Depth filter: fy: " << fy << endl;
+    cout << "Depth filter: cx: " << cx << endl;
+    cout << "Depth filter: cy: " << cy << endl;
+    cout << "Depth filter: Getting suitable size takes " << t.toc() << " seconds" << endl;
+
+    t.tic();
+    cout << "Depth filter: Start filtering the point cloud!" << endl;
+    vector<vector<long int>> index(box_size_y / ratio, vector<long int>(box_size_x / ratio, -1));
     vector<pcl::PointCloud<pcl::PointXYZRGB>> point_cloud_for_process;
     long int count = 0;
-    float fx = config.camera_matrix(0, 0);
-    float fy = config.camera_matrix(1, 1);
-    float cx = config.camera_matrix(0, 2);
-    float cy = config.camera_matrix(1, 2);
+
     for (pcl::PointCloud<pcl::PointXYZRGB>::Ptr &pc : pc_origin)
     {
-      // cout << "fuck1" << endl;
-      // deal with a set of point cloud
       for (pcl::PointXYZRGB &p : *pc)
       {
-        // cout << "fuck2" << endl;
-        // Vector3f point;
-        // if (p.x != 0)
-        //   point << -p.y / p.x, -p.z / p.x, 1.0;
-        // else
-        //   continue;
-        // point = config.camera_matrix * point / 10.0;
-
-        // cout << "fuck3" << endl;
         int u, v;
-        u = int((-p.y / p.x * fx + cx) / 10.0);
-        v = int((-p.z / p.x * fy + cy) / 10.0);
-        if (u >= 0 && u < 1440 / 10 && v >= 0 && v < 1080 / 10)
+        u = int((-p.y / p.x * fx + cx) / ratio);
+        v = int((-p.z / p.x * fy + cy) / ratio);
+        if (u >= 0 && u < box_size_x / ratio && v >= 0 && v < box_size_y / ratio)
         {
-          // cout << u << " " << v << endl;
           if (index[v][u] == -1)
           {
             index[v][u] = count;
             count++;
-            // cout << count << endl;
 
             pcl::PointCloud<pcl::PointXYZRGB> point_cloud_tmp;
             point_cloud_tmp.push_back(p);
@@ -370,30 +445,27 @@ struct pointcloudType
         }
         else
         {
-          cout << u << " " << v << endl;
-          continue;
+          // cout << u << " " << v << endl;
+          cout << "Depth filter: WARN:Initial boxing size is not suitable!!!" << endl;
+          abort();
         }
-        // cout << "fuck4" << endl;
       }
-      cout << "Getting index take " << t.toc() << " seconds" << endl;
-      cout << "Original point cloud have " << pc->points.size() << " points" << endl;
+      cout << "Depth filter: Getting index takes " << t.toc() << " seconds" << endl;
+
       t.tic();
       pcl::PointCloud<pcl::PointXYZRGB> cloud_filtered;
-      // cout << "fuck5" << endl;
       for (int i = 0; i < point_cloud_for_process.size(); i++)
       {
-        // cout << i << endl;
         pcl::PointCloud<pcl::PointXYZRGB> one_point_cloud;
         ransacStatisticalFilter(point_cloud_for_process[i], one_point_cloud);
-        // cout << one_point.x << " " << one_point.y << " " << one_point.z << endl;
         cloud_filtered += one_point_cloud;
       }
-      // cout << "fuck6" << endl;
       pc_filtered.push_back(cloud_filtered.makeShared());
-      cout << "Filtering pc take " << t.toc() << " seconds" << endl;
-      cout << "Filtered point cloud have " << cloud_filtered.size() << " points" << endl;
+      cout << "Depth filter: Filtering pc takes " << t.toc() << " seconds" << endl;
+      cout << "Depth filter: Original point cloud have " << pc->points.size() << " points" << endl;
+      cout << "Depth filter: Filtered point cloud (depth filter) have " << cloud_filtered.size() << " points" << endl;
     }
-    cout << "Filtering finished!" << endl;
+    cout << "Depth filter: Filtering finished!" << endl;
   }
 
   void resample(double resolution)

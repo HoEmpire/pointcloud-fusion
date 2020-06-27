@@ -75,7 +75,7 @@ void icpNonlinearWithNormal(vector<PointCloud::Ptr> clouds, vector<Eigen::Matrix
 
   for (int i = 0; i < clouds.size() - 1; i++)
   {
-    std::cout << "*****fusing point cloud set " << i << " *****" << std::endl;
+    cout << "*****fusing point cloud set " << i << " *****" << endl;
     PointCloud::Ptr src(new PointCloud);
     PointCloud::Ptr tgt(new PointCloud);
     src = clouds_resample[i + 1];
@@ -137,7 +137,7 @@ void icpNonlinearWithNormal(vector<PointCloud::Ptr> clouds, vector<Eigen::Matrix
       // if the difference between this transformation and the previous one
       // is smaller than the threshold, refine the process by reducing
       // the maximal correspondence distance
-      if (std::abs((icp.getLastIncrementalTransformation() - prev).sum()) < icp.getTransformationEpsilon())
+      if (abs((icp.getLastIncrementalTransformation() - prev).sum()) < icp.getTransformationEpsilon())
         icp.setMaxCorrespondenceDistance(icp.getMaxCorrespondenceDistance() - 0.001);
 
       prev = icp.getLastIncrementalTransformation();
@@ -148,8 +148,8 @@ void icpNonlinearWithNormal(vector<PointCloud::Ptr> clouds, vector<Eigen::Matrix
     // final_T = final_T * icp.getFinalTransformation();
     final_T = final_T * Ti * init_T[i];
 
-    std::cout << "Final Transformation: " << std::endl << final_T << std::endl;
-    std::cout << "***************************" << std::endl;
+    cout << "Final Transformation: " << endl << final_T << endl;
+    cout << "***************************" << endl;
     pcl::PointCloud<pcl::PointXYZRGB> new_cloud;
 
     pcl::transformPointCloud(*clouds[i + 1], new_cloud, final_T);
@@ -173,7 +173,8 @@ void ndtRegistration(struct pointcloudType point_cloud_data, vector<Eigen::Matri
   timer t;
   for (int i = 0; i < point_cloud_data.pc_filtered.size() - 1; i++)
   {
-    std::cout << "*****fusing point cloud set " << i << " *****" << std::endl;
+    if (point_cloud_data.pc_filtered.size() != 2)
+      cout << "*****fusing point cloud set " << i << " *****" << endl;
     t.tic();
     PointCloud::Ptr src(new PointCloud);
     PointCloud::Ptr tgt(new PointCloud);
@@ -199,16 +200,13 @@ void ndtRegistration(struct pointcloudType point_cloud_data, vector<Eigen::Matri
     //计算需要的刚体变换以便将输入的点云匹配到目标点云
     pcl::PointCloud<PointT>::Ptr output_cloud(new pcl::PointCloud<PointT>);
     ndt.align(*output_cloud, init_T[i]);
-    std::cout << "Normal Distributions Transform has converged:" << ndt.hasConverged()
-              << " score: " << ndt.getFitnessScore() << std::endl;
+    cout << "Normal Distributions Transform has converged:" << ndt.hasConverged() << " score: " << ndt.getFitnessScore()
+         << endl;
 
-    // ROS_INFO_STREAM("ICP has converged?: " << icp.hasConverged());
-    // ROS_INFO_STREAM("Fitness Score: " << icp.getFitnessScore());
-    // final_T = final_T * icp.getFinalTransformation();
     final_T = final_T * ndt.getFinalTransformation();
-    std::cout << "Final Transformation: " << std::endl << ndt.getFinalTransformation() << std::endl;
+    cout << "Final Transformation: " << endl << ndt.getFinalTransformation() << endl;
     cout << "Registraing point cloud " << i + 1 << " takes " << t.toc() << " seconds." << endl;
-    std::cout << "***************************" << std::endl << endl;
+    cout << "***************************" << endl << endl;
     pcl::PointCloud<pcl::PointXYZRGB> new_cloud;
 
     pcl::transformPointCloud(*point_cloud_data.pc_filtered[i + 1], new_cloud, final_T);
@@ -221,4 +219,52 @@ void ndtRegistration(struct pointcloudType point_cloud_data, vector<Eigen::Matri
     pcl::io::savePCDFile("/home/tim/ndt_two_frame.pcd", origin);
   PCL_INFO("Fusion Complete!!");
   cout << endl;
+}
+
+void calLoopsTransform(struct pointcloudType point_cloud_data, vector<vector<int>> loops,
+                       vector<Eigen::Matrix4f> &result_T)
+{
+  for (int i = 0; i < loops.size(); i++)
+  {
+    vector<Mat> imgs, depths;
+    vector<pcl::PointCloud<pcl::PointXYZRGB>::Ptr> pcs_two_origin, pcs_two_filtered, pcs_two_resample;
+
+    pcs_two_origin.push_back(pc_data.pc_origin[loops[i][0]]);
+    pcs_two_origin.push_back(pc_data.pc_origin[loops[i][1]]);
+    pcs_two_filtered.push_back(pc_data.pc_filtered[loops[i][0]]);
+    pcs_two_filtered.push_back(pc_data.pc_filtered[loops[i][1]]);
+    pcs_two_resample.push_back(pc_data.pc_resample[loops[i][0]]);
+    pcs_two_resample.push_back(pc_data.pc_resample[loops[i][1]]);
+    struct pointcloudType pc_data_two(pcs_two_origin, pcs_two_filtered, pcs_two_resample);
+
+    imgs.push_back(image_data.imgs[loops[i][0]]);
+    imgs.push_back(image_data.imgs[loops[i][1]]);
+    depths.push_back(image_data.depths[loops[i][0]]);
+    depths.push_back(image_data.depths[loops[i][1]]);
+
+    struct imageType image_data_two;
+    image_data_two.imgs = imgs;
+    image_data_two.depths = depths;
+    image_data_two.init();
+    vector<Matrix4f> T_init_two = calVisualOdometry(image_data_two);
+    vector<Matrix4f> T_result_two;
+    ndtRegistration(pc_data_two, T_init_two, T_result_two);
+
+    Matrix3d rotation_matrix = T_result_two[0].topLeftCorner(3, 3).cast<double>();
+    Quaterniond q(rotation_matrix);
+
+    // uncertainty criterion
+    Matrix4f T_edge = T_vertex[loops[i][1]].inverse() * T_vertex[loops[i][0]];
+
+    Matrix4f T_error = T_edge * T_result_two[0];
+    // cout << "T edge: " << endl << T_edge << endl;
+    // cout << "T_result: " << endl << T_result_two[0] << endl;
+    // cout << "T_error: " << endl << T_error << endl;
+    Vector3f euler_angle = rotationMatrixToEulerAngles(T_error.topLeftCorner(3, 3)) * 180 / PI;
+    cout << "error in euler anles (deg): " << euler_angle.transpose() << endl;
+    cout << "error in translation (m): " << T_error.topRightCorner(3, 1).transpose() << endl;
+    cout << "error sum in angles (deg): " << euler_angle.norm() << endl;
+    cout << "error sum in translation (m): " << T_error.topRightCorner(3, 1).norm() << endl;
+    cout << endl << endl;
+  }
 }

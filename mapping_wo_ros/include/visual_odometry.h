@@ -273,7 +273,7 @@ vector<Matrix4f> calVisualOdometry(struct imageType image_data)
   return T_between_frames;
 }
 
-void loop_closure(struct imageType image_data, vector<vector<int>> &loops)
+void loop_closure(struct imageType image_data, vector<vector<int>> &loops, vector<Matrix4f> &T_vo)
 {
   // read the images and database
   cout << "LOOP CLOSURE::reading database" << endl;
@@ -299,10 +299,13 @@ void loop_closure(struct imageType image_data, vector<vector<int>> &loops)
       if (ret[j].Score > threshold && i - int(ret[j].Id) >= frame_distance_threshold)
       {
         cout << "LOOP CLOSURE::Found loop! image " << i << " and " << ret[j].Id << " is a loop!" << endl;
-        vector<int> tmp;
-        tmp.push_back(i);
-        tmp.push_back(int(ret[j].Id));
-        loops.push_back(tmp);
+        vector<int> index_tmp;
+        index_tmp.push_back(i);
+        index_tmp.push_back(int(ret[j].Id));
+        loops.push_back(index_tmp);
+
+        struct imageType image_data_tmp = image_data.copy_by_index(index_tmp);
+        T_vo.push_back(calVisualOdometry(image_data_tmp)[0]);
       }
   }
 }

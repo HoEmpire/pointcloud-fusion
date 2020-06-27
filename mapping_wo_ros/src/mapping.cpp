@@ -22,7 +22,8 @@ int main(int argv, char **argc)
 
   t.tic();
   struct pointcloudType pc_data(pcs);
-  pc_data.filter(config.filter_std_threshold, config.frame_distance_threshold);
+  pc_data.depthFilter();
+  pc_data.standardFilter(config.filter_std_threshold, config.frame_distance_threshold);
   pc_data.resample(config.point_cloud_resolution);
   cout << "Preprocessing point clouds takes " << t.toc() << " seconds." << endl;
 
@@ -37,7 +38,9 @@ int main(int argv, char **argc)
   cout << "Registing point cloud by NDT takes " << t.toc() << " seconds." << endl;
 
   vector<vector<int>> loops;
-  loop_closure(image_data, loops);
+  vector<Matrix4f> T_loops;
+  loop_closure(image_data, loops, T_loops);
+
   ofstream outfile("./result.txt");
 
   Matrix4f tmp_pos;
@@ -65,7 +68,6 @@ int main(int argv, char **argc)
 
   for (int i = 0; i < loops.size(); i++)
   {
-    vector<Mat> imgs, depths;
     vector<pcl::PointCloud<pcl::PointXYZRGB>::Ptr> pcs_two_origin, pcs_two_filtered, pcs_two_resample;
 
     pcs_two_origin.push_back(pc_data.pc_origin[loops[i][0]]);
@@ -76,6 +78,7 @@ int main(int argv, char **argc)
     pcs_two_resample.push_back(pc_data.pc_resample[loops[i][1]]);
     struct pointcloudType pc_data_two(pcs_two_origin, pcs_two_filtered, pcs_two_resample);
 
+    vector<Mat> imgs, depths;
     imgs.push_back(image_data.imgs[loops[i][0]]);
     imgs.push_back(image_data.imgs[loops[i][1]]);
     depths.push_back(image_data.depths[loops[i][0]]);
