@@ -8,6 +8,7 @@
 #include "opencv2/core/eigen.hpp"
 #include "opencv2/xfeatures2d.hpp"
 
+#include "type.h"
 #include "util.h"
 using namespace std;
 using namespace cv;
@@ -46,7 +47,7 @@ void poseEstimation2d2d(vector<KeyPoint> keypoints_1, vector<KeyPoint> keypoints
 {
   // 相机内参,TUM Freiburg2
   Mat K;
-  Matrix3f camera_matrix = config.camera_matrix.topLeftCorner(3, 3);
+  Matrix3d camera_matrix = config.camera_matrix.topLeftCorner(3, 3);
   eigen2cv(camera_matrix, K);
 
   //-- 把匹配点转换为vector<Point2f>的形式
@@ -79,10 +80,10 @@ inline bool isZero(float d)
   return abs(d) < 1e-6;
 }
 
-float computeScaleFromPoint(Vector3f x1, Vector3f x2, float d1, float d2, Matrix3f R, Vector3f t)
+float computeScaleFromPoint(Vector3d x1, Vector3d x2, float d1, float d2, Matrix3d R, Vector3d t)
 {
-  MatrixXf A(3, 1);
-  Vector3f b;
+  MatrixXd A(3, 1);
+  Vector3d b;
   int flag = -1;
   if (!isZero(d1) && isZero(d2))
   {
@@ -113,13 +114,13 @@ float computeScaleFromPoint(Vector3f x1, Vector3f x2, float d1, float d2, Matrix
 }
 
 float recoverScale(vector<KeyPoint> keypoints_1, vector<KeyPoint> keypoints_2, vector<DMatch> inliers_with_depth,
-                   vector<float> depth1, vector<float> depth2, Matrix3f R, Vector3f t, Mat K, const int max_iter = 20,
+                   vector<float> depth1, vector<float> depth2, Matrix3d R, Vector3d t, Mat K, const int max_iter = 20,
                    const float threshold = 0.5)
 {
   vector<float> scale, scale_inliers_best, scale_inliers_tmp;
   for (int i = 0; i < inliers_with_depth.size(); i++)
   {
-    Vector3f x1, x2;
+    Vector3d x1, x2;
     Point2f p1, p2;
     p1 = pixel2cam(keypoints_1[inliers_with_depth[i].queryIdx].pt, K);
     p2 = pixel2cam(keypoints_2[inliers_with_depth[i].trainIdx].pt, K);
@@ -155,9 +156,9 @@ float recoverScale(vector<KeyPoint> keypoints_1, vector<KeyPoint> keypoints_2, v
   return average_scale;
 }
 
-vector<Matrix4f> calVisualOdometry(struct imageType image_data)
+vector<Matrix4d> calVisualOdometry(struct imageType image_data)
 {
-  vector<Matrix4f> T_between_frames;
+  vector<Matrix4d> T_between_frames;
   if (image_data.imgs.size() <= 1)
     cout << "WARNING:The numebr of images is less than 1 !" << endl;
   for (int i = 1; i < image_data.imgs.size(); i++)
@@ -168,7 +169,7 @@ vector<Matrix4f> calVisualOdometry(struct imageType image_data)
     cout << "一共找到了" << matches.size() << "组匹配点" << endl;
 
     Mat K;
-    Matrix3f camera_matrix = config.camera_matrix.topLeftCorner(3, 3);
+    Matrix3d camera_matrix = config.camera_matrix.topLeftCorner(3, 3);
     eigen2cv(camera_matrix, K);
 
     int count = 0;
@@ -213,8 +214,8 @@ vector<Matrix4f> calVisualOdometry(struct imageType image_data)
 
     float scale;
 
-    Matrix3f R_eigen;
-    Vector3f t_eigen;
+    Matrix3d R_eigen;
+    Vector3d t_eigen;
 
     if (count_PnP > 15)  // threshold for choosing PnP or epipolar search for scale recovery
     {
@@ -246,7 +247,7 @@ vector<Matrix4f> calVisualOdometry(struct imageType image_data)
       cout << "finish pose estimation by epipolar search" << endl;
     }
 
-    Matrix4f T;
+    Matrix4d T;
     T.setIdentity(4, 4);
     T.topLeftCorner(3, 3) = R_eigen;
     // cout << scale << endl;
@@ -256,7 +257,7 @@ vector<Matrix4f> calVisualOdometry(struct imageType image_data)
 
     // show in euler angle
     cout << "T:" << endl << T << endl;
-    Vector3f euler_angle = rotationMatrixToEulerAngles(T.topLeftCorner(3, 3)) * 180 / PI;
+    Vector3d euler_angle = rotationMatrixToEulerAngles(T.topLeftCorner(3, 3)) * 180 / PI;
     cout << "euler anles = " << euler_angle.transpose() << endl;
     float angles =
         sqrt(euler_angle[0] * euler_angle[0] + euler_angle[1] * euler_angle[1] + euler_angle[2] * euler_angle[2]);
@@ -273,7 +274,7 @@ vector<Matrix4f> calVisualOdometry(struct imageType image_data)
   return T_between_frames;
 }
 
-void loop_closure(struct imageType image_data, vector<vector<int>> &loops, vector<Matrix4f> &T_vo)
+void loop_closure(struct imageType image_data, vector<vector<int>> &loops, vector<Matrix4d> &T_vo)
 {
   // read the images and database
   cout << "LOOP CLOSURE::reading database" << endl;

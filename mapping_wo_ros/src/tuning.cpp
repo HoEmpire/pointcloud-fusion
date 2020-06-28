@@ -27,12 +27,12 @@ int main(int argv, char **argc)
   cout << "Preprocessing point clouds takes " << t.toc() << " seconds." << endl;
 
   t.tic();
-  vector<Matrix4f> T_init = calVisualOdometry(image_data);
+  vector<Matrix4d> T_init = calVisualOdometry(image_data);
   cout << "Calculating visual odometry takes " << t.toc() << " seconds." << endl;
 
   t.tic();
   // icpNonlinearWithNormal(pcs, T_init);
-  vector<Matrix4f> T_result;
+  vector<Matrix4d> T_result;
   ndtRegistration(pc_data, T_init, T_result);
   cout << "Registing point cloud by NDT takes " << t.toc() << " seconds." << endl;
 

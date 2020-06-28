@@ -1,4 +1,6 @@
+#include "data_io.h"
 #include "icp.h"
+#include "type.h"
 #include "util.h"
 #include "visual_odometry.h"
 
@@ -28,23 +30,23 @@ int main(int argv, char **argc)
   cout << "Preprocessing point clouds takes " << t.toc() << " seconds." << endl;
 
   t.tic();
-  vector<Matrix4f> T_init = calVisualOdometry(image_data);
+  vector<Matrix4d> T_init = calVisualOdometry(image_data);
   cout << "Calculating visual odometry takes " << t.toc() << " seconds." << endl;
 
   t.tic();
   // icpNonlinearWithNormal(pcs, T_init);
-  vector<Matrix4f> T_result;
+  vector<Matrix4d> T_result;
   ndtRegistration(pc_data, T_init, T_result);
   cout << "Registing point cloud by NDT takes " << t.toc() << " seconds." << endl;
 
   vector<vector<int>> loops;
-  vector<Matrix4f> T_loops;
+  vector<Matrix4d> T_loops;
   loop_closure(image_data, loops, T_loops);
 
   ofstream outfile("./result.txt");
-  Matrix4f tmp_pos;
+  Matrix4d tmp_pos;
   tmp_pos.setIdentity(4, 4);
-  vector<Matrix4f> T_vertex;
+  vector<Matrix4d> T_vertex;
   outfile << "VERTEX: 0 0.0 0.0 0.0 0.0 0.0 0.0 1.0" << endl;
   T_vertex.push_back(tmp_pos);
   for (int i = 0; i < T_result.size(); i++)
@@ -87,21 +89,21 @@ int main(int argv, char **argc)
     image_data_two.imgs = imgs;
     image_data_two.depths = depths;
     image_data_two.init();
-    vector<Matrix4f> T_init_two = calVisualOdometry(image_data_two);
-    vector<Matrix4f> T_result_two;
+    vector<Matrix4d> T_init_two = calVisualOdometry(image_data_two);
+    vector<Matrix4d> T_result_two;
     ndtRegistration(pc_data_two, T_init_two, T_result_two);
 
     Matrix3d rotation_matrix = T_result_two[0].topLeftCorner(3, 3).cast<double>();
     Quaterniond q(rotation_matrix);
 
     // uncertainty criterion
-    Matrix4f T_edge = T_vertex[loops[i][1]].inverse() * T_vertex[loops[i][0]];
+    Matrix4d T_edge = T_vertex[loops[i][1]].inverse() * T_vertex[loops[i][0]];
 
-    Matrix4f T_error = T_edge * T_result_two[0];
+    Matrix4d T_error = T_edge * T_result_two[0];
     // cout << "T edge: " << endl << T_edge << endl;
     // cout << "T_result: " << endl << T_result_two[0] << endl;
     // cout << "T_error: " << endl << T_error << endl;
-    Vector3f euler_angle = rotationMatrixToEulerAngles(T_error.topLeftCorner(3, 3)) * 180 / PI;
+    Vector3d euler_angle = rotationMatrixToEulerAngles(T_error.topLeftCorner(3, 3)) * 180 / PI;
     cout << "error in euler anles (deg): " << euler_angle.transpose() << endl;
     cout << "error in translation (m): " << T_error.topRightCorner(3, 1).transpose() << endl;
     cout << "error sum in angles (deg): " << euler_angle.norm() << endl;

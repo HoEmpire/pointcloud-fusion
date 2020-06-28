@@ -9,7 +9,9 @@
 
 #include "DBoW3/DBoW3.h"
 
+#include "data_io.h"
 #include "icp.h"
+#include "type.h"
 #include "util.h"
 #include "visual_odometry.h"
 
@@ -141,8 +143,8 @@ int main(int argc, char** argv)
 //     image_data_two.imgs = imgs;
 //     image_data_two.depths = depths;
 //     image_data_two.init();
-//     vector<Matrix4f> T_init_two = calVisualOdometry(image_data_two);
-//     vector<Matrix4f> T_result_two;
+//     vector<Matrix4d> T_init_two = calVisualOdometry(image_data_two);
+//     vector<Matrix4d> T_result_two;
 //     ndtRegistration(pcs_two, T_init_two, T_result_two);
 
 //     Matrix3d rotation_matrix = T_result_two[0].topLeftCorner(3, 3).cast<double>();

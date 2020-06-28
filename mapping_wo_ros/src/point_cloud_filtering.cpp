@@ -1,4 +1,6 @@
+#include "data_io.h"
 #include "icp.h"
+#include "type.h"
 #include "util.h"
 #include "visual_odometry.h"
 
