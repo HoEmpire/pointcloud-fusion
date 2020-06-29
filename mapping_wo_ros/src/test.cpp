@@ -143,11 +143,11 @@ int main(int argc, char** argv)
 //     image_data_two.imgs = imgs;
 //     image_data_two.depths = depths;
 //     image_data_two.init();
-//     vector<Matrix4d> T_init_two = calVisualOdometry(image_data_two);
-//     vector<Matrix4d> T_result_two;
+//     vector<Matrix4f> T_init_two = calVisualOdometry(image_data_two);
+//     vector<Matrix4f> T_result_two;
 //     ndtRegistration(pcs_two, T_init_two, T_result_two);
 
-//     Matrix3d rotation_matrix = T_result_two[0].topLeftCorner(3, 3).cast<double>();
+//     Matrix3f rotation_matrix = T_result_two[0].topLeftCorner(3, 3).cast<double>();
 //     Quaterniond q(rotation_matrix);
 //     outfile << "EDGE: " << loops[i][0] << " " << loops[i][1] << " " << T_result_two[0].topRightCorner(3,
 //     1).transpose()

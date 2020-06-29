@@ -24,36 +24,36 @@ int main(int argv, char **argc)
 
   t.tic();
   struct pointcloudType pc_data(pcs);
-  pc_data.depthFilter();
+  pc_data.depthFilter(5.0);
   pc_data.standardFilter(config.filter_std_threshold, config.frame_distance_threshold);
   pc_data.resample(config.point_cloud_resolution);
   cout << "Preprocessing point clouds takes " << t.toc() << " seconds." << endl;
 
   t.tic();
-  vector<Matrix4d> T_init = calVisualOdometry(image_data);
+  vector<Matrix4f> T_init = calVisualOdometry(image_data);
   cout << "Calculating visual odometry takes " << t.toc() << " seconds." << endl;
 
   t.tic();
   // icpNonlinearWithNormal(pcs, T_init);
-  vector<Matrix4d> T_result;
+  vector<Matrix4f> T_result;
   ndtRegistration(pc_data, T_init, T_result);
   cout << "Registing point cloud by NDT takes " << t.toc() << " seconds." << endl;
 
   vector<vector<int>> loops;
-  vector<Matrix4d> T_loops;
-  loop_closure(image_data, loops, T_loops);
+  vector<Matrix4f> T_loops;
+  loopClosure(image_data, loops, T_loops);
 
   ofstream outfile("./result.txt");
-  Matrix4d tmp_pos;
+  Matrix4f tmp_pos;
   tmp_pos.setIdentity(4, 4);
-  vector<Matrix4d> T_vertex;
+  vector<Matrix4f> T_vertex;
   outfile << "VERTEX: 0 0.0 0.0 0.0 0.0 0.0 0.0 1.0" << endl;
   T_vertex.push_back(tmp_pos);
   for (int i = 0; i < T_result.size(); i++)
   {
     tmp_pos = tmp_pos * T_result[i];
     T_vertex.push_back(tmp_pos);
-    Matrix3d rotation_matrix = tmp_pos.topLeftCorner(3, 3).cast<double>();
+    Matrix3f rotation_matrix = tmp_pos.topLeftCorner(3, 3).cast<double>();
     Quaterniond q(rotation_matrix);
     outfile << "VERTEX: " << i + 1 << " " << tmp_pos.topRightCorner(3, 1).transpose() << " " << q.x() << " " << q.y()
             << " " << q.z() << " " << q.w() << endl;
@@ -61,7 +61,7 @@ int main(int argv, char **argc)
 
   for (int i = 0; i < T_result.size(); i++)
   {
-    Matrix3d rotation_matrix = T_result[i].topLeftCorner(3, 3).cast<double>();
+    Matrix3f rotation_matrix = T_result[i].topLeftCorner(3, 3).cast<double>();
     Quaterniond q(rotation_matrix);
     outfile << "EDGE: " << i << " " << i + 1 << " " << T_result[i].topRightCorner(3, 1).transpose() << " " << q.x()
             << " " << q.y() << " " << q.z() << " " << q.w() << endl;
@@ -89,21 +89,21 @@ int main(int argv, char **argc)
     image_data_two.imgs = imgs;
     image_data_two.depths = depths;
     image_data_two.init();
-    vector<Matrix4d> T_init_two = calVisualOdometry(image_data_two);
-    vector<Matrix4d> T_result_two;
+    vector<Matrix4f> T_init_two = calVisualOdometry(image_data_two);
+    vector<Matrix4f> T_result_two;
     ndtRegistration(pc_data_two, T_init_two, T_result_two);
 
-    Matrix3d rotation_matrix = T_result_two[0].topLeftCorner(3, 3).cast<double>();
+    Matrix3f rotation_matrix = T_result_two[0].topLeftCorner(3, 3).cast<double>();
     Quaterniond q(rotation_matrix);
 
     // uncertainty criterion
-    Matrix4d T_edge = T_vertex[loops[i][1]].inverse() * T_vertex[loops[i][0]];
+    Matrix4f T_edge = T_vertex[loops[i][1]].inverse() * T_vertex[loops[i][0]];
 
-    Matrix4d T_error = T_edge * T_result_two[0];
+    Matrix4f T_error = T_edge * T_result_two[0];
     // cout << "T edge: " << endl << T_edge << endl;
     // cout << "T_result: " << endl << T_result_two[0] << endl;
     // cout << "T_error: " << endl << T_error << endl;
-    Vector3d euler_angle = rotationMatrixToEulerAngles(T_error.topLeftCorner(3, 3)) * 180 / PI;
+    Vector3f euler_angle = rotationMatrixToEulerAngles(T_error.topLeftCorner(3, 3)) * 180 / PI;
     cout << "error in euler anles (deg): " << euler_angle.transpose() << endl;
     cout << "error in translation (m): " << T_error.topRightCorner(3, 1).transpose() << endl;
     cout << "error sum in angles (deg): " << euler_angle.norm() << endl;

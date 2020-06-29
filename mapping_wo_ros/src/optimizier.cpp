@@ -45,7 +45,7 @@ int main(int argv, char **argc)
         fin >> d;
       Quaterniond q(data[6], data[3], data[4], data[5]);
       q.normalize();
-      v->setEstimate(g2o::SE3Quat(q, Vector3d(data[0], data[1], data[2]).matrix()));
+      v->setEstimate(g2o::SE3Quat(q, Vector3f(data[0], data[1], data[2]).matrix()));
 
       optimizer.addVertex(v);
       vertexCnt++;
@@ -67,7 +67,7 @@ int main(int argv, char **argc)
         fin >> d;
       Quaterniond q(data[6], data[3], data[4], data[5]);
       q.normalize();
-      e->setMeasurement(g2o::SE3Quat(q, Vector3d(data[0], data[1], data[2])));
+      e->setMeasurement(g2o::SE3Quat(q, Vector3f(data[0], data[1], data[2])));
       Eigen::MatrixXd information_matrix(6, 6);
       information_matrix.setIdentity(6, 6);
       if (idx1 < idx2)
@@ -151,7 +151,7 @@ int main(int argv, char **argc)
   pcl::PointCloud<pcl::PointXYZRGB> origin;
   for (int i = 0; i < pc_data.pc_filtered.size(); i++)
   {
-    Eigen::Matrix4d final_T;
+    Eigen::Matrix4f final_T;
     g2o::VertexSE3 *v = dynamic_cast<g2o::VertexSE3 *>(optimizer.vertex(i));
     final_T = v->estimate().matrix();
     cout << "Pose=" << endl << final_T << endl;
@@ -162,7 +162,7 @@ int main(int argv, char **argc)
 
   pcl::io::savePCDFile("/home/tim/ndt_lc.pcd", origin);
 
-  // Eigen::Matrix4d final_T_edge;
+  // Eigen::Matrix4f final_T_edge;
   // final_T_edge.setIdentity(4, 4);
   // pcl::PointCloud<pcl::PointXYZRGB> origin_edge;
   // origin_edge = *pcs[0];

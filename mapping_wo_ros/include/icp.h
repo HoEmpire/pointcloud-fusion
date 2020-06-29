@@ -1,4 +1,5 @@
 #pragma once
+#include <pcl/common/transforms.h>
 #include <pcl/features/normal_3d.h>
 #include <pcl/filters/filter.h>
 #include <pcl/filters/statistical_outlier_removal.h>  //统计滤波器头文件
@@ -43,8 +44,8 @@ public:
   }
 };
 
-void icpNonlinearWithNormal(vector<PointCloud::Ptr> clouds, vector<Eigen::Matrix4d> init_T,
-                            vector<Eigen::Matrix4d> &result_T)
+void icpNonlinearWithNormal(vector<PointCloud::Ptr> clouds, vector<Eigen::Matrix4f> init_T,
+                            vector<Eigen::Matrix4f> &result_T)
 {
   // point cloud preprocess
   pcl::StatisticalOutlierRemoval<pcl::PointXYZRGB> statisticalFilter;  //创建滤波器对象
@@ -69,7 +70,7 @@ void icpNonlinearWithNormal(vector<PointCloud::Ptr> clouds, vector<Eigen::Matrix
     clouds_resample.push_back(cloud_resample);
   }
 
-  Eigen::Matrix4d final_T;
+  Eigen::Matrix4f final_T;
   final_T.setIdentity(4, 4);
   pcl::PointCloud<pcl::PointXYZRGB> origin = *clouds[0];
   // PCL_INFO("Fusing point clouds");
@@ -117,7 +118,7 @@ void icpNonlinearWithNormal(vector<PointCloud::Ptr> clouds, vector<Eigen::Matrix
     icp.setPointRepresentation(boost::make_shared<const MyPointRepresentation>(point_representation));
     // Run the same optimization in a loop and visualize the results
 
-    Eigen::Matrix4d Ti = Eigen::Matrix4d::Identity(), prev, targetToSource;
+    Eigen::Matrix4f Ti = Eigen::Matrix4f::Identity(), prev, targetToSource;
     PointCloudWithNormals::Ptr reg_result = points_with_normals_src;
     icp.setMaximumIterations(1);
     for (int j = 0; j < config.iter_num; ++j)
@@ -164,10 +165,10 @@ void icpNonlinearWithNormal(vector<PointCloud::Ptr> clouds, vector<Eigen::Matrix
   PCL_INFO("Fusion Complete!!");
 }
 
-void ndtRegistration(struct pointcloudType point_cloud_data, vector<Eigen::Matrix4d> init_T,
-                     vector<Eigen::Matrix4d> &result_T)
+void ndtRegistration(struct pointcloudType point_cloud_data, vector<Eigen::Matrix4f> init_T,
+                     vector<Eigen::Matrix4f> &result_T)
 {
-  Eigen::Matrix4d final_T;
+  Eigen::Matrix4f final_T;
   final_T.setIdentity(4, 4);
   pcl::PointCloud<pcl::PointXYZRGB> origin = *point_cloud_data.pc_filtered[0];
   // PCL_INFO("Fusing point clouds");
@@ -223,8 +224,9 @@ void ndtRegistration(struct pointcloudType point_cloud_data, vector<Eigen::Matri
   cout << endl;
 }
 
-void calLoopsTransform(struct pointcloudType point_cloud_data, vector<vector<int>> loops, vector<Eigen::Matrix4d> T_vo,
-                       vector<Eigen::Matrix4d> T_pc, vector<vector<int>> &loops_good, vector<Eigen::Matrix4d> &T_result)
+void calLoopsTransform(struct pointcloudType point_cloud_data, vector<vector<int>> loops, vector<Eigen::Matrix4f> T_vo,
+                       vector<Eigen::Matrix4f> T_vertex, vector<vector<int>> &loops_good,
+                       vector<Eigen::Matrix4f> &T_result)
 {
   for (int i = 0; i < loops.size(); i++)
   {
@@ -238,31 +240,27 @@ void calLoopsTransform(struct pointcloudType point_cloud_data, vector<vector<int
     pcs_two_resample.push_back(point_cloud_data.pc_resample[loops[i][1]]);
     struct pointcloudType pc_data_two(pcs_two_origin, pcs_two_filtered, pcs_two_resample);
 
-    vector<Eigen::Matrix4d> T_result_two, T_init_two;
+    vector<Eigen::Matrix4f> T_result_two, T_init_two;
     T_init_two.push_back(T_vo[i]);
 
     cout << "*****fusing point " << loops[i][0] << " and " << loops[i][1] << " *****" << endl;
     ndtRegistration(pc_data_two, T_init_two, T_result_two);
 
-    Matrix3d rotation_matrix = T_result_two[0].topLeftCorner(3, 3).cast<double>();
-    Quaterniond q(rotation_matrix);
+    Matrix3f rotation_matrix = T_result_two[0].topLeftCorner(3, 3);
 
     // uncertainty criterion
-    Matrix4d T_edge = T_pc[loops[i][1]].inverse() * T_pc[loops[i][0]];
+    Matrix4f T_edge = T_vertex[loops[i][1]].inverse() * T_vertex[loops[i][0]];
 
-    Matrix4d T_error = T_edge * T_result_two[0];
-    // cout << "T edge: " << endl << T_edge << endl;
-    // cout << "T_result: " << endl << T_result_two[0] << endl;
-    // cout << "T_error: " << endl << T_error << endl;
-    Vector3d euler_angle = rotationMatrixToEulerAngles(T_error.topLeftCorner(3, 3)) * 180 / PI;
+    Matrix4f T_error = T_edge * T_result_two[0];
+    Vector3f euler_angle = rotationMatrixToEulerAngles(T_error.topLeftCorner(3, 3)) * 180 / PI;
     cout << "Error information between vertex " << loops[i][0] << " and vertex " << loops[i][1] << endl;
     cout << "error in euler anles (deg): " << euler_angle.transpose() << endl;
     cout << "error in translation (m): " << T_error.topRightCorner(3, 1).transpose() << endl;
     cout << "error sum in angles (deg): " << euler_angle.norm() << endl;
     cout << "error sum in translation (m): " << T_error.topRightCorner(3, 1).norm() << endl;
-    int distance = loops[i][1] - loops[i][0];
-    if (T_error.topRightCorner(3, 1).norm() > config.uncertainty_translation * distance ||
-        euler_angle.norm() > config.uncertainty_translation * distance)
+    int distance = loops[i][0] - loops[i][1];
+    if (T_error.topRightCorner(3, 1).norm() < config.uncertainty_translation * distance ||
+        euler_angle.norm() < config.uncertainty_degree * distance)
     {
       cout << "This pair is good loop!" << endl;
       T_result.push_back(T_result_two[0]);

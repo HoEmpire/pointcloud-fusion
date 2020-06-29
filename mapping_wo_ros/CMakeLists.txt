@@ -31,11 +31,17 @@ include_directories(
 set( DBoW3_INCLUDE_DIRS "/usr/local/include" )
 set( DBoW3_LIBS "/usr/local/lib/libDBoW3.so" )
 
+add_library(optimization src/optimization.cpp)
+target_link_libraries(optimization ${Eigen3_INCLUDE_DIRS} g2o_core g2o_stuff g2o_types_slam3d)
+
 # add_executable(mapping src/mapping.cpp) 
 # target_link_libraries(mapping ${PCL_LIBRARIES} ${Eigen3_INCLUDE_DIRS} ${OpenCV_LIBS} ${DBoW3_LIBS})  
 
-add_executable(point_cloud_filtering src/point_cloud_filtering.cpp) 
-target_link_libraries(point_cloud_filtering ${PCL_LIBRARIES} ${Eigen3_INCLUDE_DIRS} ${OpenCV_LIBS} ${DBoW3_LIBS})  
+add_executable(main src/main.cpp) 
+target_link_libraries(main ${PCL_LIBRARIES} ${Eigen3_INCLUDE_DIRS} ${OpenCV_LIBS} ${DBoW3_LIBS} optimization)  
+
+# add_executable(point_cloud_filtering src/point_cloud_filtering.cpp) 
+# target_link_libraries(point_cloud_filtering ${PCL_LIBRARIES} ${Eigen3_INCLUDE_DIRS} ${OpenCV_LIBS} ${DBoW3_LIBS})  
 
 # add_executable(tuning src/tuning.cpp) 
 # target_link_libraries(tuning ${PCL_LIBRARIES} ${Eigen3_INCLUDE_DIRS} ${OpenCV_LIBS} ${DBoW3_LIBS})  

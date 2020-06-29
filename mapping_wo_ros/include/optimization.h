@@ -7,9 +7,12 @@
 #include <g2o/types/sba/types_six_dof_expmap.h>
 #include <g2o/types/slam3d/types_slam3d.h>
 
-#include "util.h"
+#include <Eigen/Core>
+#include <Eigen/Geometry>
+#include <Eigen/LU>
 
 using namespace std;
+using namespace Eigen;
 
 class optimization
 {
@@ -18,15 +21,15 @@ public:
 
   ~optimization() = default;
 
-  void addVertexs(vector<Matrix4d> T_vertexs);
+  void addVertexs(vector<Matrix4f> T_vertexs);
 
-  void addEdges(vector<Matrix4d> T_edges);
+  void addEdges(vector<Matrix4f> T_edges);
 
-  void addLoops(vector<Matrix4d> T_loops, vector<vector<int>> loops);
+  void addLoops(vector<Matrix4f> T_loops, vector<vector<int>> loops);
 
-  void optimize(int num_iteration);
+  void optimize(int num_iteration = 30);
 
-  vector<Matrix4d> getResult();
+  vector<Matrix4f> getResult();
 
   g2o::SparseOptimizer optimizer;
 

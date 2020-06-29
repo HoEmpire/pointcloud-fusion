@@ -1,5 +1,6 @@
 #pragma once
 #include <chrono>
+#include <fstream>
 #include <iostream>
 #include <vector>
 
@@ -12,7 +13,7 @@ using namespace Eigen;
 using namespace std;
 using namespace std::chrono;
 
-Vector3d rotationMatrixToEulerAngles(Matrix3d R)
+Vector3f rotationMatrixToEulerAngles(Matrix3f R)
 {
   float sy = sqrt(R(0, 0) * R(0, 0) + R(1, 0) * R(1, 0));
 
@@ -31,19 +32,19 @@ Vector3d rotationMatrixToEulerAngles(Matrix3d R)
     y = atan2(-R(2, 0), sy);
     z = 0;
   }
-  Vector3d result;
+  Vector3f result;
   result << x, y, z;
   return result;
 }
 
-Matrix3d hat(Vector3d v)
+Matrix3f hat(Vector3f v)
 {
-  Matrix3d v_hat;
+  Matrix3f v_hat;
   v_hat << 0, -v(2), v(1), v(2), 0, -v(0), -v(1), v(0), 0;
   return v_hat;
 }
 
-MatrixXd leastSquareMethod(MatrixXd A, VectorXd b)
+MatrixXf leastSquareMethod(MatrixXf A, VectorXf b)
 {
   return (A.transpose() * A).inverse() * A.transpose() * b;
 }
@@ -52,8 +53,8 @@ MatrixXd leastSquareMethod(MatrixXd A, VectorXd b)
 struct ConfigSetting
 {
   string data_path;
-  Eigen::Matrix4d extrinsic_matrix;
-  Eigen::Matrix3d camera_matrix;
+  Eigen::Matrix4f extrinsic_matrix;
+  Eigen::Matrix3f camera_matrix;
   double k1, k2, k3, p1, p2;
   double max_cor_dis, trans_eps;
   int iter_num;
