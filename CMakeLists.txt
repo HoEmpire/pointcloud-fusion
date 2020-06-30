@@ -39,14 +39,23 @@ add_definitions(${PCL_DEFINITIONS})
 
 include_directories(include ${catkin_INCLUDE_DIRS})
 
-add_library(datalog_lib src/mylog.cpp)
+# g2o 
+list(APPEND CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake_modules)
+find_package(G2O REQUIRED)
+include_directories(${G2O_INCLUDE_DIRS})
 
-# add_executable(fuse_point_cloud src/single_color_pointcloud.cpp) 
-# target_link_libraries(fuse_point_cloud ${PCL_LIBRARIES} ${catkin_LIBRARIES} ${OpenCV_LIBS})  
-# target_link_libraries(find_transform)
+include_directories(
+  include
+  ${OpenCV_INCLUDE_DIRS}
+  ${Eigen3_INCLUDE_DIRS}
+  ${PCL_DEFINITIONS}
+)
 
-# add_executable(dataloger src/dataloger.cpp) 
-# target_link_libraries(dataloger datalog_lib ${PCL_LIBRARIES} ${catkin_LIBRARIES} ${OpenCV_LIBS})  
+set( DBoW3_INCLUDE_DIRS "/usr/local/include" )
+set( DBoW3_LIBS "/usr/local/lib/libDBoW3.so" )
 
-add_executable(multi_pointcloud src/multi_color_pointcloud.cpp) 
-target_link_libraries(multi_pointcloud ${PCL_LIBRARIES} ${catkin_LIBRARIES} ${OpenCV_LIBS})  
+add_library(optimization src/optimization.cpp)
+target_link_libraries(optimization ${Eigen3_INCLUDE_DIRS} g2o_core g2o_stuff g2o_types_slam3d)
+
+add_executable(pointcloud_fusion src/main.cpp) 
+target_link_libraries(pointcloud_fusion ${PCL_LIBRARIES} ${catkin_LIBRARIES} ${Eigen3_INCLUDE_DIRS} ${OpenCV_LIBS} ${DBoW3_LIBS} optimization)  
