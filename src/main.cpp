@@ -71,7 +71,7 @@ void callback(const sensor_msgs::PointCloud2ConstPtr &msg_pc, const sensor_msgs:
     struct imageType image_data;
     image_data.imgs = imgs;
     struct pointcloudType pc_data(clouds);
-    pointCloudRegistration(image_data, pc_data);
+    pointCloudRegistration(image_data, pc_data, config.pc_save_path);
     ROS_INFO("Fusion Complete!!");
     ros::shutdown();
   }
@@ -138,6 +138,7 @@ int main(int argc, char **argv)
   n.getParam("/pointcloud_fusion/save_path", save_path);
   n.getParam("/pointcloud_fusion/lidar_topic", lidar_topic);
   n.getParam("/pointcloud_fusion/camera_topic", camera_topic);
+  loadConfig(n);
   // n.getParam("/pointcloud_fusion/icp_config/MaxCorrespondenceDistance", icp_configs.MaxCorrespondenceDistance);
   // n.getParam("/pointcloud_fusion/icp_config/TransformationEpsilon", icp_configs.TransformationEpsilon);
   // n.getParam("/pointcloud_fusion/icp_config/MaximumIterations", icp_configs.MaximumIterations);

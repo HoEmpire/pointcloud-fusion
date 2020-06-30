@@ -19,7 +19,7 @@ void pointCloudRegistration(struct imageType image_data, struct pointcloudType p
   cout << "Extracting features takes " << t.toc() << " seconds." << endl;
 
   t.tic();
-  pc_data.depthFilter(5.0);
+  pc_data.depthFilter(config.depth_filter_ratio);
   pc_data.standardFilter(config.filter_std_threshold, config.frame_distance_threshold);
   pc_data.resample(config.point_cloud_resolution);
   image_data.depths = pc_data.paintPointCloud(image_data.imgs);

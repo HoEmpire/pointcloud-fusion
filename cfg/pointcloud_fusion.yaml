@@ -2,3 +2,29 @@
   lidar_topic: /livox/lidar
   camera_topic: /camera_array/cam0/image_raw
   save_path: /home/tim/dataset/filter
+
+icp_nolinear:
+  max_correspondence_distance: 0.10
+  transformation_epsilon: 0.0001
+
+ndt:
+  num_iteration: 50
+  transformation_epsilon: 0.01
+  step_size: 0.1
+  resolution: 0.04
+
+point_cloud_preprocess:
+  resample_resolution: 0.02
+  statistical_filter_meanK: 30
+  statistical_filter_std: 2
+  depth_filter_ratio: 5.0
+
+loop_closure:
+  num_of_result: 4
+  frame_distance_threshold: 2
+  score_threshold: 0.1
+  translation_uncertainty: 0.1
+  rotation_uncertainty: 0.5
+
+io:
+  point_cloud_save_path: /home/tim/test.pcd

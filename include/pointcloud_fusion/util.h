@@ -11,6 +11,7 @@
 #include <pcl/io/pcd_io.h>
 #include <pcl/point_cloud.h>
 #include <ros/package.h>
+#include <ros/ros.h>
 #include <opencv2/core/core.hpp>
 
 const float PI = 3.1415926535;
@@ -62,7 +63,7 @@ struct ConfigSetting
   double k1, k2, k3, p1, p2;
   double max_cor_dis, trans_eps;
   int iter_num;
-  double c1, c2, c3;
+  double trans_eps_ndt, step_size_ndt, resolution_ndt;
   double point_cloud_resolution;
   int num_of_result = 4;
   int frame_distance_threshold = 2;
@@ -70,8 +71,10 @@ struct ConfigSetting
   int filter_meanK = 100;
   float filter_std_threshold = 1.0;
   float uncertainty_translation = 0.1;  // m
-  float uncertainty_degree = 0.5;       // deg
+  float uncertainty_rotation = 0.5;     // deg
+  float depth_filter_ratio = 5.0;
   string pkg_loc;
+  string pc_save_path;
 
   void print()
   {
@@ -114,24 +117,50 @@ void readConfig()
   infile >> config.p1;
   infile >> config.p2;
   infile >> config.k3;
-  infile >> config.max_cor_dis;
-  infile >> config.trans_eps;
-  infile >> config.iter_num;
 
-  infile >> config.c1;
-  infile >> config.c2;
-  infile >> config.c3;
-  infile >> config.point_cloud_resolution;
+  // infile >> config.max_cor_dis;
+  // infile >> config.trans_eps;
+  // infile >> config.iter_num;
 
-  infile >> config.num_of_result;
-  infile >> config.frame_distance_threshold;
-  infile >> config.score_threshold;
+  // infile >> config.c1;
+  // infile >> config.c2;
+  // infile >> config.c3;
+  // infile >> config.point_cloud_resolution;
 
-  infile >> config.filter_meanK;
-  infile >> config.filter_std_threshold;
+  // infile >> config.num_of_result;
+  // infile >> config.frame_distance_threshold;
+  // infile >> config.score_threshold;
+
+  // infile >> config.filter_meanK;
+  // infile >> config.filter_std_threshold;
 
   infile.close();
   config.print();
+}
+
+void loadConfig(ros::NodeHandle n)
+{
+  n.getParam("/icp_nolinear/max_correspondence_distance", config.max_cor_dis);
+  n.getParam("/icp_nolinear/transformation_epsilon", config.trans_eps);
+  n.getParam("/ndt/num_iteration", config.iter_num);
+
+  n.getParam("/ndt/transformation_epsilon", config.trans_eps_ndt);
+  n.getParam("/ndt/step_size", config.step_size_ndt);
+  n.getParam("/ndt/resolution", config.resolution_ndt);
+
+  n.getParam("/point_cloud_preprocess/resample_resolution", config.point_cloud_resolution);
+  n.getParam("/point_cloud_preprocess/statistical_filter_meanK", config.filter_meanK);
+  n.getParam("/point_cloud_preprocess/statistical_filter_std", config.filter_std_threshold);
+  n.getParam("/point_cloud_preprocess/depth_filter_ratio", config.depth_filter_ratio);
+
+  n.getParam("/loop_closure/num_of_result", config.num_of_result);
+  n.getParam("/loop_closure/frame_distance_threshold", config.frame_distance_threshold);
+  n.getParam("/loop_closure/score_threshold", config.score_threshold);
+  n.getParam("/loop_closure/num_of_result", config.num_of_result);
+  n.getParam("/loop_closure/translation_uncertainty", config.uncertainty_translation);
+  n.getParam("/loop_closure/rotation_uncertainty", config.uncertainty_rotation);
+
+  n.getParam("/io/point_cloud_save_path", config.pc_save_path);
 }
 
 void paintPointCloud(pcl::PointCloud<pcl::PointXYZI> point_cloud, const cv::Mat img,

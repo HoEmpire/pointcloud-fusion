@@ -187,11 +187,11 @@ void ndtRegistration(struct pointcloudType point_cloud_data, vector<Eigen::Matri
     pcl::NormalDistributionsTransform<PointT, PointT> ndt;
     //设置依赖尺度NDT参数
     //为终止条件设置最小转换差异
-    ndt.setTransformationEpsilon(config.c1);  // 0.01
+    ndt.setTransformationEpsilon(config.trans_eps_ndt);  // 0.01
     //为More-Thuente线搜索设置最大步长
-    ndt.setStepSize(config.c2);  // 0.1
+    ndt.setStepSize(config.step_size_ndt);  // 0.1
     //设置NDT网格结构的分辨率（VoxelGridCovariance）
-    ndt.setResolution(config.c3);  // 1.0
+    ndt.setResolution(config.resolution_ndt);  // 1.0
     //设置匹配迭代的最大次数
     ndt.setMaximumIterations(config.iter_num);
     // 设置要配准的点云
@@ -260,7 +260,7 @@ void calLoopsTransform(struct pointcloudType point_cloud_data, vector<vector<int
     cout << "error sum in translation (m): " << T_error.topRightCorner(3, 1).norm() << endl;
     int distance = loops[i][0] - loops[i][1];
     if (T_error.topRightCorner(3, 1).norm() < config.uncertainty_translation * distance ||
-        euler_angle.norm() < config.uncertainty_degree * distance)
+        euler_angle.norm() < config.uncertainty_rotation * distance)
     {
       cout << "This pair is good loop!" << endl;
       T_result.push_back(T_result_two[0]);
