@@ -1,5 +1,7 @@
 # Colorize the lidar point cloud and mapping
 
+<div align=center><img width="1855" height="1056" src="images/result.png"/></div>
+
 ## Content
 
 - [Introduction](#Introduction)
@@ -14,9 +16,13 @@ We project the lidar point cloud to the image pixel by pre-known extrinsic calib
 
 The advantages of this sensor set are longer detection range and better performance in outdoor scenario.
 
-The pipeline of the current version is:
+### Data preprocess Pipeline:
 
-<div align=center><img width="600" height="300" src="images/pipeline.png"/></div>
+<div align=center><img width="980" height="314" src="images/data_preprocess_pipeline.png"/></div>
+
+### Registration Pipeline:
+
+<div align=center><img width="1073" height="562" src="images/registration_pipeline.png"/></div>
 
 ## Dependence
 
@@ -24,6 +30,8 @@ The pipeline of the current version is:
 - ROS-kinetic
 - OpenCV >= 4.2
 - Eigen >= 3.4
+- g2o
+- DBoW3
 - ros-keyboard(`/pointcloud_fusion/dependence/ros-keyboard`)
 
 ## Usage
@@ -69,18 +77,12 @@ We need to set two config files. The first one is in `/pointcloud_fusion/cfg/con
 0.000000 1209.968892 552.339491
 0.000000 0.000000 1.000000
 -0.103090 0.109216 0.002118 0.000661 0.000000
-0.10
-0.0000001
-200
 ```
 
 ```txt
 Rotation Matrix[3x3] Translation Vector[3x1]
 Camera Matrix[3x3]
 k1 k2 p1 p2 k3
-Maximum Correspondence Distance of ICP
-Transformation Epsilon of ICP
-number of iterations of ICP
 ```
 
 #### pointcloud_fusion.yaml
@@ -90,28 +92,54 @@ pointcloud_fusion:
   lidar_topic: /livox/lidar # subscribed lidar topic
   camera_topic: /camera_array/cam0/image_raw # subscribed camera topic
   save_path: /home/tim/dataset/test2 # save path of the logging mode
+
+icp_nolinear:
+  max_correspondence_distance: 0.10
+  transformation_epsilon: 0.0001
+
+ndt:
+  num_iteration: 50
+  transformation_epsilon: 0.01
+  step_size: 0.1
+  resolution: 0.04
+
+point_cloud_preprocess:
+  resample_resolution: 0.02
+  statistical_filter_meanK: 30
+  statistical_filter_std: 2
+  depth_filter_ratio: 5.0 #smaller value for large-scale scenario
+
+loop_closure:
+  num_of_result: 4 #number of the return result of the potential loops
+  frame_distance_threshold: 2 #the minimum frame distance between two loops
+  score_threshold: 0.1 #the matching score threshold for a correct loop
+  translation_uncertainty: 0.1 #translation uncertainty between two closest frame
+  rotation_uncertainty: 0.5 #rotation uncertainty between two closest frame
+
+io:
+  point_cloud_save_path: /home/tim/test.pcd #save path of the point cloud
 ```
 
 ### 3. Run the code
 
 ```shell
-roslaunch pointcloud_fusion multi_color_pointcloud
+roslaunch pointcloud_fusion pointcloud_fusion
 rosrun keyboard keyboard
 ```
 
 Then press the keyboard in keyboard window to enter different command.
 
-1-adding a new set of colorized pointcloud
+1-add a new set of data ( a pair of pointcloud and image)
 
-2-mapping with all the pointcloud and kill ros after finishing this process
+2-map with all the pointclouds and save the result, then kill ros after finishing this process
 
-3-save a set of colorized pointcloud in `.pcd` and images in `.jpg` in
+3-save a set of colorized pointcloud in `.pcd`, RGB images in `.jpg`, depth map in `.png` in
 `save_path`
 
 4-end logging and generate a description of the datas, then kill ros
 
-Finally after mapping, the code will generate a mapping result in `/home/icp.pcd`. You can view the result by
+Finally after mapping, the code will generate a mapping result in `point_cloud_save_path` set in `pointcloud_fusion.yaml`. You can view the result by
 
-```
-pcl_viewer icp.pcd
+```shell
+pcl_viewer test.pcd #the save file is test.pcd for example
 ```
