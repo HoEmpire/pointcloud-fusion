@@ -1,6 +1,6 @@
 # Colorize the lidar point cloud and mapping
 
-<div align=center><img width="1855" height="1056" src="images/result.png"/></div>
+<div align=center><img width="780" height="395" src="images/result.png"/></div>
 
 ## Content
 
@@ -18,11 +18,11 @@ The advantages of this sensor set are longer detection range and better performa
 
 ### Data preprocess Pipeline:
 
-<div align=center><img width="980" height="314" src="images/data_preprocess_pipeline.png"/></div>
+<div align=center><img width="490" height="157" src="images/data_preprocess_pipeline.png"/></div>
 
 ### Registration Pipeline:
 
-<div align=center><img width="1073" height="562" src="images/registration_pipeline.png"/></div>
+<div align=center><img width="536" height="281" src="images/registration_pipeline.png"/></div>
 
 ## Dependence
 
