@@ -33,6 +33,7 @@ int global_flag = 0;
 string save_path;
 vector<pcl::PointCloud<pcl::PointXYZRGB>::Ptr> clouds;
 vector<cv::Mat> imgs;
+vector<cv::Mat> depths;
 
 Eigen::Matrix4f final_T;
 
@@ -55,12 +56,19 @@ void callback(const sensor_msgs::PointCloud2ConstPtr &msg_pc, const sensor_msgs:
     undistortImage(cv_ptr->image, image_undistorted);
     imgs.push_back(image_undistorted);
 
-    point_cloud_color.resize(point_cloud_livox.size());
-    for (int i = 0; i < point_cloud_livox.size(); i++)
+    cv::Mat depth_map;
+    // paintPointCloud(point_cloud_livox, image_undistorted, point_cloud_color, depth_map);
+    // depths.push_back(depth_map);
+
+    // point_cloud_color.resize(point_cloud_livox.size());
+    for (pcl::PointCloud<pcl::PointXYZI>::iterator pt = point_cloud_livox.points.begin();
+         pt < point_cloud_livox.points.end(); pt++)
     {
-      point_cloud_color[i].x = point_cloud_livox[i].x;
-      point_cloud_color[i].y = point_cloud_livox[i].y;
-      point_cloud_color[i].z = point_cloud_livox[i].z;
+      pcl::PointXYZRGB new_point;
+      new_point.x = pt->x;
+      new_point.y = pt->y;
+      new_point.z = pt->z;
+      point_cloud_color.push_back(new_point);
     }
     clouds.push_back(point_cloud_color.makeShared());
 
@@ -70,6 +78,7 @@ void callback(const sensor_msgs::PointCloud2ConstPtr &msg_pc, const sensor_msgs:
   {
     struct imageType image_data;
     image_data.imgs = imgs;
+    // image_data.depths = depths;
     struct pointcloudType pc_data(clouds);
     pointCloudRegistration(image_data, pc_data, config.pc_save_path);
     ROS_INFO("Fusion Complete!!");

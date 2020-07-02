@@ -25,8 +25,10 @@ int main(int argv, char **argc)
 
   t.tic();
   struct pointcloudType pc_data(pcs);
-  pc_data.depthFilter();
+
+  pc_data.depthFilter(1.0);
   pc_data.standardFilter(config.filter_std_threshold, config.frame_distance_threshold);
+  image_data.depths = pc_data.paintPointCloud(image_data.imgs);
   pc_data.resample(config.point_cloud_resolution);
   cout << "Preprocessing point clouds takes " << t.toc() << " seconds." << endl;
 
@@ -62,4 +64,8 @@ int main(int argv, char **argc)
   opt.optimize();
   T_final = opt.getResult();
   savePointCloud(pc_data, T_final, "test");
+  for (int i = 0; i < image_data.depths.size(); i++)
+  {
+    cv::imwrite(config.data_path + "test/" + to_string(i) + "_.png", image_data.depths[i]);
+  }
 }

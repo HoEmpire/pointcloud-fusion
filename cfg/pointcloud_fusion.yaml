@@ -17,7 +17,7 @@ point_cloud_preprocess:
   resample_resolution: 0.02
   statistical_filter_meanK: 30
   statistical_filter_std: 2
-  depth_filter_ratio: 5.0
+  depth_filter_ratio: 1.0
 
 loop_closure:
   num_of_result: 4

@@ -175,7 +175,8 @@ struct pointcloudType
       {
         pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud_filtered(new pcl::PointCloud<pcl::PointXYZRGB>);
         statisticalFilter.setInputCloud(pc);
-        statisticalFilter.filter(*pc);
+        statisticalFilter.filter(*cloud_filtered);
+        pc_filtered.push_back(cloud_filtered);
         // radiusFilter.setInputCloud(pc);
         // radiusFilter.filter(*pc);  //滤波结果存储到cloud_filtered
 
@@ -332,10 +333,10 @@ struct pointcloudType
     cx = config.camera_matrix(0, 2);
     cy = config.camera_matrix(1, 2);
 
-    cv::Mat depth_map;
+    // cv::Mat depth_map;
     for (int i = 0; i < pc_filtered.size(); i++)
     {
-      depth_map = cv::Mat::zeros(row, col, CV_16UC1);
+      cv::Mat depth_map = cv::Mat::zeros(row, col, CV_16UC1);
       for (pcl::PointCloud<pcl::PointXYZRGB>::iterator pt = pc_filtered[i]->points.begin();
            pt < pc_filtered[i]->points.end(); pt++)
       {
@@ -361,13 +362,11 @@ struct pointcloudType
           pt->g = img_ptr[3 * x + 1];
           pt->r = img_ptr[3 * x + 2];
           if (depth >= 0)
-          {
             depth_map.at<ushort>(y, x) = ushort(depth);
-            depths.push_back(depth_map);
-          }
         }
         // cout << "fuck3" << endl;
       }
+      depths.push_back(depth_map);
     }
 
     cout << "Paint Point Cloud: Painting pc and getting depth maps takes " << t.toc() << " seconds" << endl;

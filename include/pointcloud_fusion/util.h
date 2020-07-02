@@ -142,8 +142,8 @@ void loadConfig(ros::NodeHandle n)
 {
   n.getParam("/icp_nolinear/max_correspondence_distance", config.max_cor_dis);
   n.getParam("/icp_nolinear/transformation_epsilon", config.trans_eps);
-  n.getParam("/ndt/num_iteration", config.iter_num);
 
+  n.getParam("/ndt/num_iteration", config.iter_num);
   n.getParam("/ndt/transformation_epsilon", config.trans_eps_ndt);
   n.getParam("/ndt/step_size", config.step_size_ndt);
   n.getParam("/ndt/resolution", config.resolution_ndt);
@@ -188,28 +188,9 @@ void paintPointCloud(pcl::PointCloud<pcl::PointXYZI> point_cloud, const cv::Mat 
     if (p(2) > 65.0)
       continue;
     float depth = p(2) * 1000;
-    p = p / p(2);
 
-    // double r2 = p(0) * p(0) + p(1) * p(1);
-
-    // double k1, k2, k3, p1, p2;
-    // k1 = config.k1;
-    // k2 = config.k2;
-    // k3 = config.k3;
-    // p1 = config.p1;
-    // p2 = config.p2;
-
-    // double x_distorted, y_distorted;
-    // x_distorted =
-    //     p(0) * (1 + k1 * r2 + k2 * r2 * r2 + k3 * r2 * r2 * r2) + 2 * p1 * p(0) * p(1) + p2 * (r2 + 2 * p(0) * p(0));
-    // y_distorted =
-    //     p(1) * (1 + k1 * r2 + k2 * r2 * r2 + k3 * r2 * r2 * r2) + 2 * p2 * p(0) * p(1) + p1 * (r2 + 2 * p(1) * p(1));
-
-    // p(0) = x_distorted;
-    // p(1) = y_distorted;
-
-    int x = int(p(0) * fx + cx);
-    int y = int(p(1) * fy + cy);
+    int x = int(p(0) / p(2) * fx + cx);
+    int y = int(p(1) / p(2) * fy + cy);
     if (x >= 0 && x < col && y >= 0 && y < row)
     {
       pcl::PointXYZRGB new_point;

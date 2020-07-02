@@ -305,4 +305,68 @@ struct pointcloudType
     }
     cout << "Resampling finished!" << endl;
   }
+
+  vector<cv::Mat> paintPointCloud(const vector<cv::Mat> imgs)
+  {
+    vector<cv::Mat> depths;
+    if (imgs.size() < 1)
+    {
+      cout << "Paint Point Cloud: The length of the image vector is 0!" << endl;
+      return depths;
+    }
+
+    timer t;
+    t.tic();
+    int row = imgs[0].rows;
+    int col = imgs[0].cols;
+
+    // cout << "fuck1" << endl;
+    Eigen::Vector4f p;
+    float fx, fy, cx, cy;
+    fx = config.camera_matrix(0, 0);
+    fy = config.camera_matrix(1, 1);
+    cx = config.camera_matrix(0, 2);
+    cy = config.camera_matrix(1, 2);
+
+    // cv::Mat depth_map;
+    for (int i = 0; i < pc_filtered.size(); i++)
+    {
+      cv::Mat depth_map = cv::Mat::zeros(row, col, CV_16UC1);
+      for (pcl::PointCloud<pcl::PointXYZRGB>::iterator pt = pc_filtered[i]->points.begin();
+           pt < pc_filtered[i]->points.end(); pt++)
+      {
+        // cout << "fuck2" << endl;
+        p << 0, 0, 0, 1;
+        p(0) = pt->x;
+        p(1) = pt->y;
+        p(2) = pt->z;
+        if (p(2) == 0)
+          continue;
+
+        p = config.extrinsic_matrix * p;
+        if (p(2) > 65.0)
+          continue;
+        float depth = p(2) * 1000;
+
+        int x = int(p(0) / p(2) * fx + cx);
+        int y = int(p(1) / p(2) * fy + cy);
+        if (x >= 0 && x < col && y >= 0 && y < row)
+        {
+          uchar const *img_ptr = imgs[i].ptr<uchar>(y);
+          pt->b = img_ptr[3 * x];
+          pt->g = img_ptr[3 * x + 1];
+          pt->r = img_ptr[3 * x + 2];
+          if (depth >= 0)
+          {
+            depth_map.at<ushort>(y, x) = ushort(depth);
+          }
+        }
+        // cout << "fuck3" << endl;
+      }
+      depths.push_back(depth_map);
+    }
+
+    cout << "Paint Point Cloud: Painting pc and getting depth maps takes " << t.toc() << " seconds" << endl;
+    return depths;
+  }
 };
